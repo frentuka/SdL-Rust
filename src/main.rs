@@ -6,6 +6,10 @@ mod ejemplos {
     pub mod ej_lectura;
 }
 
+mod leetcode {
+    pub mod daily_chal1;
+}
+
 mod practicas {
     pub mod prac1 {
         pub mod prac1_ej1;
@@ -20,5 +24,7 @@ mod practicas {
 }
 
 fn main() {
-    practicas::prac1::prac1_ej8::ej8()
+    let example_array = vec![vec![1,2], vec![2,3], vec![3,4]];
+
+    let st = leetcode::daily_chal1::Solution::merge_arrays(vec![vec![1, 2], vec![2, 3]], vec![vec![3, 4], vec![4, 5]]);
 }

@@ -1,5 +1,3 @@
-use std::io::Read;
-
 /*
     Escribir un programa que defina una tupla
     que contenga una cadena, un número entero con signo y un valor booleano
