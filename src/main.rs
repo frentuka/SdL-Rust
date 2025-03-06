@@ -1,4 +1,5 @@
 use crate::ejemplos::ej_lectura;
+use crate::practicas::prac1::{prac1_ej1, prac1_ej9};
 
 mod ejemplos {
     pub mod ej_shadowing;
@@ -20,11 +21,11 @@ mod practicas {
         pub mod prac1_ej6;
         pub mod prac1_ej7;
         pub mod prac1_ej8;
+        pub mod prac1_ej9;
+        pub mod prac1_ej10;
     }
 }
 
 fn main() {
-    let example_array = vec![vec![1,2], vec![2,3], vec![3,4]];
-
-    let st = leetcode::daily_chal1::Solution::merge_arrays(vec![vec![1, 2], vec![2, 3]], vec![vec![3, 4], vec![4, 5]]);
+    prac1_ej9::ej9();
 }
