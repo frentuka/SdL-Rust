@@ -2,12 +2,32 @@
 <module type="EMPTY_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/prac1/ej1/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/prac1/ej2/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
-      <excludeFolder url="file://$MODULE_DIR$/prac1/ej1/target" />
-      <excludeFolder url="file://$MODULE_DIR$/prac1/ej2/target" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej1/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej10/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej11/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej12/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej2/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej3/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej4/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej5/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej6/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej7/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej8/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac1_/ej9/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej1/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej10/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej11/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej12/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej2/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej3/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej4/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej5/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej6/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej7/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej8/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac1_/ej9/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
