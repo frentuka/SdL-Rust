@@ -4,7 +4,7 @@
  */
 
 fn main() {
-
+    println!("{}", suma_pares(Vec::from([1, 2, 3, 4, 5])));
 }
 
 fn suma_pares(arr: Vec<i32>) -> i32 {
