@@ -1,1 +1,4 @@
 /target
+/prac1/*/target
+/prac1/ej2/target
+.gitignore
