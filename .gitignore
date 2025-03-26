@@ -1,4 +1,3 @@
 /target
-/prac1_/*/target
-/prac2/*/target
-.gitignore
+/prac1/target
+/prac2/target

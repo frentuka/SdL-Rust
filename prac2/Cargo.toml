@@ -1,0 +1,14 @@
+[package]
+name = "prac2"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ej1"
+path = "src/ej1/main.rs"
+
+[[bin]]
+name = "ej2"
+path = "src/ej2/main.rs"
+
+[dependencies]

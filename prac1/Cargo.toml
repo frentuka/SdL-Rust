@@ -1,0 +1,54 @@
+[package]
+name = "prac1"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ej1"
+path = "src/ej1/main.rs"
+
+[[bin]]
+name = "ej2"
+path = "src/ej2/main.rs"
+
+[[bin]]
+name = "ej3"
+path = "src/ej3/main.rs"
+
+[[bin]]
+name = "ej4"
+path = "src/ej4/main.rs"
+
+[[bin]]
+name = "ej5"
+path = "src/ej5/main.rs"
+
+[[bin]]
+name = "ej6"
+path = "src/ej6/main.rs"
+
+[[bin]]
+name = "ej7"
+path = "src/ej7/main.rs"
+
+[[bin]]
+name = "ej8"
+path = "src/ej8/main.rs"
+
+[[bin]]
+name = "ej9"
+path = "src/ej9/main.rs"
+
+[[bin]]
+name = "ej10"
+path = "src/ej10/main.rs"
+
+[[bin]]
+name = "ej11"
+path = "src/ej11/main.rs"
+
+[[bin]]
+name = "ej12"
+path = "src/ej12/main.rs"
+
+[dependencies]
