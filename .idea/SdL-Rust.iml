@@ -17,6 +17,7 @@
       <sourceFolder url="file://$MODULE_DIR$/prac1_/ej9/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/prac1/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/prac2/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac3/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac1_/ej1/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac1_/ej10/target" />
@@ -32,6 +33,7 @@
       <excludeFolder url="file://$MODULE_DIR$/prac1_/ej9/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac1/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac2/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac3/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
