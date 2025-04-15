@@ -16,9 +16,6 @@
  */
 use std::fmt;
 
-// podría usarse sólo DIAS_POR_MES pero prefiero gastar memoria y ahorrarme años de vida
-const DIAS_POR_MES: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-const DIAS_POR_MES_BIS: [u8; 12] = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const NOMBRE_MESES: [&str; 12] = ["Enero", "Febrero", "Marzo", "Abril",
                                   "Mayo", "Junio", "Julio", "Agosto",
                                   "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -32,7 +29,7 @@ struct Fecha {
 impl fmt::Display for Fecha {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.es_fecha_valida() {
-            write!(f, "{} de {} de {}", self.dia, NOMBRE_MESES[self.mes as usize - 1], self.ano)
+            write!(f, "{} de {} del {}", self.dia, NOMBRE_MESES[self.mes as usize - 1], self.ano)
         } else {
             write!(f, "{}/{}/{}", self.dia, self.mes, self.ano)
         }
@@ -51,10 +48,9 @@ impl Fecha {
         if !(1..=12).contains(&self.mes) { return false }
 
         // check días del mes
-        if self.es_bisiesto() && !(1..=DIAS_POR_MES_BIS[self.mes as usize -1]).contains(&self.mes)
-            ||
-          !self.es_bisiesto() && !(1..=DIAS_POR_MES[self.mes as usize -1]).contains(&self.mes)
-        { return false }
+        if self.dia < 1 
+        || self.dia > self.dias_mes_actual()
+            { return false }
 
         // el año no puede ser incorrecto...
         // a no ser que se contabilice la edad del universo
@@ -70,92 +66,60 @@ impl Fecha {
     // en cambio, erroneamente, calcula si el año actual es bisiesto
     // el problema: si el año actual es bisiesto pero el 29/feb ya pasó, no hay que tener en cuenta el día bisiesto
     // para el cálculo. cosa que este código lamentablemente sí hace
-    fn sumar_dias(&mut self, dias: u64) {
-        let mut dias = dias;
-
-        // si es mayor o igual a un año
-        while dias >= self.dias_ano_actual() as u64 {
-            dias-= self.dias_ano_actual() as u64;
-            self.ano += 1;
-        }
-
-        // si es mayor o igual al mes actual
-        while dias >= self.dias_mes_actual() as u64 {
-            dias-= self.dias_mes_actual() as u64;
-
-            if self.mes < 12 {
-                self.mes+= 1;
+    fn sumar_dias(&mut self, dias: u32) {
+        let mut dias_restantes = dias;
+        
+        while dias_restantes > 0 {
+            let dias_mes_actual = self.dias_mes_actual();
+            let dias_para_proximo_mes = (dias_mes_actual - self.dia + 1) as u32;
+            
+            if dias_restantes >= dias_para_proximo_mes {
+                // ir al siguiente mes
+                
+                dias_restantes-= dias_para_proximo_mes;
+                self.dia = 1;
+                self.mes += 1;
+                
+                if self.mes > 12 {
+                    self.mes = 1;
+                    self.ano+= 1;
+                }
             } else {
-                self.mes = 1;
-                self.ano+= 1;
+                self.dia+= dias_restantes as u8;
+                dias_restantes = 0;
             }
-        }
-
-        // último tramo. el cast a u8 es seguro porque dias <= 31
-        let mut dias = dias as u8;
-        if self.dia + dias > self.dias_mes_actual() {
-            dias-= self.dias_mes_actual() - self.dia;
-            if self.mes < 12 {
-                self.mes+= 1;
-            } else {
-                self.mes = 1;
-                self.ano += 1;
-            }
-
-            self.dia = dias;
-        } else {
-            self.dia += dias;
         }
     }
 
-    fn restar_dias(&mut self, dias: u64) {
-        let mut dias = dias;
+    fn restar_dias(&mut self, dias: u32) {
+        let mut dias_restantes = dias;
 
-        // si es mayor o igual a un año
-        while dias >= self.dias_ano_actual() as u64 {
-            dias-= self.dias_ano_actual() as u64;
-            self.ano -= 1;
-        }
-
-        // si es mayor o igual al mes actual
-        while dias >= self.dias_mes_actual() as u64 {
-            dias-= self.dias_mes_actual() as u64;
-
-            if self.mes > 1 {
+        while dias_restantes > 0 {
+            if dias_restantes >= self.dia as u32 {
+                // ir al anterior mes
+                dias_restantes-= self.dia as u32;
                 self.mes-= 1;
-            } else {
-                self.mes = 12;
-                self.ano-= 1;
-            }
-        }
 
-        // último tramo. el cast a u8 es seguro porque dias <= 31
-        let mut dias = dias as u8;
-        if dias >= self.dia {
-            if self.mes > 1 {
-                self.mes-= 1;
+                if self.mes < 1 {
+                    self.mes = 12;
+                    self.ano-= 1;
+                }
+                
+                // corregir self.dia == 0
+                self.dia = self.dias_mes_actual();
             } else {
-                self.mes = 12;
-                self.ano-= 1;
+                self.dia-= dias_restantes as u8;
+                dias_restantes = 0;
             }
-
-            dias-= self.dia;
-            self.dia = self.dias_mes_actual() - dias;
-        } else {
-            self.dia -= dias;
         }
     }
 
     fn dias_mes_actual(&self) -> u8 {
-        if (1..=12).contains(&self.mes) {
-            if self.es_bisiesto() { DIAS_POR_MES_BIS[self.mes as usize - 1] }
-            else { DIAS_POR_MES[self.mes as usize - 1] }
-        } else { panic!("ERROR: mes inválido") }
-    }
-
-    fn dias_ano_actual(&self) -> u16 {
-        if self.es_bisiesto() { 366 }
-        else { 365 }
+        match self.mes {
+            4 | 6 | 9 | 11 => 30,
+            2 => if self.es_bisiesto() { 29 } else { 28 },
+            _ => 31,
+        }
     }
 }
 

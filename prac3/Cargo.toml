@@ -15,4 +15,12 @@ path = "src/ej2/main.rs"
 name = "prac3ej3"
 path = "src/ej3/main.rs"
 
+[[bin]]
+name = "prac3ej4"
+path = "src/ej4/main.rs"
+
+[[bin]]
+name = "prac3ej5"
+path = "src/ej5/main.rs"
+
 [dependencies]
