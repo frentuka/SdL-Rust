@@ -19,7 +19,7 @@ use std::fmt;
 const NOMBRE_MESES: [&str; 12] = ["Enero", "Febrero", "Marzo", "Abril",
                                   "Mayo", "Junio", "Julio", "Agosto",
                                   "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Fecha {
     dia: u8,
     mes: u8,
@@ -138,4 +138,35 @@ fn main() {
     println!("{}", fecha2);
     fecha2.restar_dias(1);
     println!("{}", fecha2);
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Fecha;
+
+    #[test]
+    fn test_bisiestos() {
+        let fecha = Fecha::new(22, 8, 2002);
+        assert!(!fecha.es_bisiesto(), "2002 no es un año bisiesto");
+        
+        let fecha_2 = Fecha::new(22, 8, 2020);
+        assert!(fecha_2.es_bisiesto(), "2020 es bisiesto");
+        
+        let fecha_3 = Fecha::new(1, 1, 0);
+        assert!(fecha_3.es_bisiesto(), "0 es bisiesto");
+    }
+    
+    #[test]
+    fn test_suma_resta() {
+        let mut fecha_1 = Fecha::new(22, 8, 2002);
+        let fecha_2 = Fecha::new(22, 8, 2002);
+        
+        fecha_1.sumar_dias(5000);
+        
+        assert_eq!(fecha_1, Fecha::new(30, 4, 2016), "22/08/2002 + 5000 días = 30/04/2016");
+        
+        fecha_1.restar_dias(5000);
+        
+        assert_eq!(fecha_1, fecha_2, "22/08/2002 + 5000 - 5000 == 22/08/2002");
+    }
 }
