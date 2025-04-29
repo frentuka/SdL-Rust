@@ -24,11 +24,11 @@ impl Producto {
     }
 
     fn calcular_impuestos(&self, porc: f32) -> f32 {
-        self.precio * (porc / 100.0)
+        self.precio * (1.0 + porc / 100.0)
     }
 
     fn aplicar_descuento(&self, porc: f32) -> f32 {
-        self.precio * (porc / 100.0)
+        self.precio * (1.0 - porc / 100.0)
     }
 
     fn calcular_precio_total(&self, porc_imp: Option<f32>, porc_desc: Option<f32>) -> f32 {
