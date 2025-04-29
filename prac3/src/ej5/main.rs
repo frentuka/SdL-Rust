@@ -11,6 +11,7 @@
         precio total a pagar aplicando impuesto y descuento. Tenga en cuenta que los
         parámetros son opcionales.
 */
+use std::io::stdout;
 
 struct Producto {
     nombre: String,
@@ -24,7 +25,7 @@ impl Producto {
     }
 
     fn calcular_impuestos(&self, porc: f32) -> f32 {
-        self.precio * (1.0 + porc / 100.0)
+        self.precio * porc / 100.0
     }
 
     fn aplicar_descuento(&self, porc: f32) -> f32 {
@@ -34,7 +35,7 @@ impl Producto {
     fn calcular_precio_total(&self, porc_imp: Option<f32>, porc_desc: Option<f32>) -> f32 {
         let mut precio = self.precio;
 
-        if porc_desc.is_some() { precio = self.aplicar_descuento(porc_desc.unwrap()) }
+        if porc_desc.is_some() { precio-= self.aplicar_descuento(porc_desc.unwrap()) }
         if porc_imp.is_some() { precio+= self.calcular_impuestos(porc_imp.unwrap()) }
         
         precio
@@ -43,5 +44,4 @@ impl Producto {
 }
 
 fn main() {
-
 }
