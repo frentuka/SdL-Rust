@@ -24,18 +24,18 @@ impl Producto {
     }
 
     fn calcular_impuestos(&self, porc: f32) -> f32 {
-        &self.precio * (porc / 100.0 + 1.0)
+        self.precio * (porc / 100.0)
     }
 
     fn aplicar_descuento(&self, porc: f32) -> f32 {
-        &self.precio * (1.0 - (porc / 100.0))
+        self.precio * (porc / 100.0)
     }
 
     fn calcular_precio_total(&self, porc_imp: Option<f32>, porc_desc: Option<f32>) -> f32 {
         let mut precio = self.precio;
-        
+
+        if porc_desc.is_some() { precio = self.aplicar_descuento(porc_desc.unwrap()) }
         if porc_imp.is_some() { precio+= self.calcular_impuestos(porc_imp.unwrap()) }
-        if porc_desc.is_some() { precio+= self.aplicar_descuento(porc_desc.unwrap()) }
         
         precio
     }
