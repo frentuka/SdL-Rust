@@ -17,8 +17,8 @@ use crate::structs::{Atencion, Fecha, Mascota, Veterinaria};
 impl Veterinaria {
 
     // ➔ crear una veterinaria.
-    fn new(nombre: String, direccion: String, id: i32, cola: VecDeque<Mascota>, atenciones: Vec<Atencion>) -> Veterinaria {
-        Veterinaria { nombre, direccion, id, cola, atenciones }
+    fn new(nombre: String, direccion: String, id: i32, cola: Option<VecDeque<Mascota>>, atenciones: Option<Vec<Atencion>>) -> Veterinaria {
+        Veterinaria { nombre, direccion, id, cola: cola.unwrap_or_default(), atenciones: atenciones.unwrap_or_default() }
     }
 
     // ➔ agregar una nueva mascota a la cola de atención de la veterinaria.
