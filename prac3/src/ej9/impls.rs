@@ -61,7 +61,7 @@ impl Veterinaria {
     // ➔ modificar el diagnóstico de una determinada atención.
     fn modificar_diagnostico_atencion(&mut self, atencion: &Atencion, nuevo_diagnostico: String) {
         for a in self.atenciones.iter_mut() {
-            if &*a == atencion {
+            if a == atencion {
                 a.diagnostico = nuevo_diagnostico.clone();
             }
         }
@@ -70,7 +70,7 @@ impl Veterinaria {
     // ➔ modificar la fecha de la próxima visita de una determinada atención.
     fn modificar_fecha_atencion(&mut self, atencion: &Atencion, nueva_fecha: Fecha) {
         for a in self.atenciones.iter_mut() {
-            if &*a == atencion {
+            if a == atencion {
                 a.proxima_visita = nueva_fecha.clone();
             }
         }
