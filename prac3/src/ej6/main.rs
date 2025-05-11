@@ -18,10 +18,13 @@
         Nota: Tenga en cuenta que el Estudiante puede tener entre 0 y n notas de examen.
  */
 
+#[derive(Debug, Default, PartialEq, Clone, PartialOrd)]
 struct Examen {
     materia: String,
     nota: u8
 }
+
+#[derive(Debug, Default, PartialEq, Clone, PartialOrd)]
 struct Estudiante {
     nombre: String,
     id: u32,

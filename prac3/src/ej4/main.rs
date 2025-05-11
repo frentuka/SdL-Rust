@@ -7,8 +7,10 @@
         ➢ calcular_perimetro: calcula el perímetro y lo retorna.
 */
 
+#[derive(Debug)]
+#[derive(PartialEq)]
 enum TrianguloTypes {
-    EQUILATERO, ISOSCELES, ESCALENO
+    Equilatero, Isosceles, Escaleno
 }
 
 struct Triangulo {
@@ -18,34 +20,73 @@ struct Triangulo {
 }
 
 impl Triangulo {
-    fn new(a: f32, b: f32, c: f32) -> Triangulo {
-        Triangulo {a, b, c}
+    fn new(a: f32, b: f32, c: f32) -> Result<Triangulo, String> {
+        if a == 0.0
+            || b == 0.0
+            || c == 0.0
+        { return Err("Una longitud medible no puede ser 0".to_string()) }
+        
+        if (a + b) < c
+            || (a + c) < b
+            || (b + c) < a
+        { return Err("La suma de dos catetos debe ser mayor al tercer cateto".to_string()) }
+        
+        Ok(Triangulo {a, b, c})
     }
 
     fn determinar_tipo(&self) -> TrianguloTypes {
         if self.a == self.b && self.b == self.c {
-            return TrianguloTypes::EQUILATERO
+            return TrianguloTypes::Equilatero
         }
 
         if self.a == self.b
         || self.a == self.c
-        || self.b == self.c { return TrianguloTypes::ISOSCELES }
+        || self.b == self.c { return TrianguloTypes::Isosceles }
         
-        TrianguloTypes::ESCALENO
+        TrianguloTypes::Escaleno
     }
 
     fn calcular_area(&self) -> f32 {
-        let s = (&self.a + &self.b + &self.c) / 2.0;
+        let s = (self.a + self.b + self.c) / 2.0;
         // √[s(s - a)(s - b)(s - c)],
-        (s * ((s-&self.a)*(s-&self.b)*(s-&self.c))).sqrt()
+        (s * ((s-self.a)*(s-self.b)*(s-self.c))).sqrt()
     }
 
     fn calcular_perimetro(&self) -> f32 {
-        &self.a + &self.b + &self.c
+        self.a + self.b + self.c
     }
 
 }
 
 fn main() {
     
+}
+
+#[cfg(test)]
+mod test_triangulo {
+    use crate::{Triangulo, TrianguloTypes};
+    
+    #[test]
+    fn test_triangulo_invalido_1() {
+        let triangulo_invalido = Triangulo::new(1.0, 1.0, 1000.0);
+        assert!(triangulo_invalido.is_err());
+    }
+    
+    #[test]
+    fn test_triangulo_invalido_2() {
+        let triangulo_invalido = Triangulo::new(0.0, 1.0, 1.0);
+        assert!(triangulo_invalido.is_err());
+    }
+    
+    #[test]
+    fn test_triangulo_types() {
+        let triangulo_eq = Triangulo::new(1.0, 1.0, 1.0).unwrap();
+        assert_eq!(triangulo_eq.determinar_tipo(), TrianguloTypes::Equilatero);
+
+        let triangulo_is = Triangulo::new(1.0, 1.0, 2.0).unwrap();
+        assert_eq!(triangulo_is.determinar_tipo(), TrianguloTypes::Isosceles);
+
+        let triangulo_es = Triangulo::new(1.0, 2.0, 3.0).unwrap();
+        assert_eq!(triangulo_es.determinar_tipo(), TrianguloTypes::Escaleno);
+    }
 }

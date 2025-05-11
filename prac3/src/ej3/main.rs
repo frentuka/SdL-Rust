@@ -61,11 +61,7 @@ impl Fecha {
     fn es_bisiesto(&self) -> bool {
         self.ano % 4 == 0
     }
-
-    // este código es un fracaso porque no tiene en cuenta si se atravesará o no un 29/feb
-    // en cambio, erroneamente, calcula si el año actual es bisiesto
-    // el problema: si el año actual es bisiesto pero el 29/feb ya pasó, no hay que tener en cuenta el día bisiesto
-    // para el cálculo. cosa que este código lamentablemente sí hace
+    
     fn sumar_dias(&mut self, dias: u32) {
         let mut dias_restantes = dias;
         

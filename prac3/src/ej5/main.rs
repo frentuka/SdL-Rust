@@ -24,24 +24,38 @@ impl Producto {
         Producto { nombre, precio, id }
     }
 
-    fn calcular_impuestos(&self, porc: f32) -> f32 {
-        self.precio * porc / 100.0
+    fn calcular_impuestos(&self, porc: f32) -> f64 {
+        self.precio as f64 * porc as f64 / 100.0
     }
 
-    fn aplicar_descuento(&self, porc: f32) -> f32 {
-        self.precio * (1.0 - porc / 100.0)
+    fn aplicar_descuento(&self, porc: f32) -> f64 {
+        self.precio as f64 * (1.0 - porc as f64 / 100.0)
     }
 
-    fn calcular_precio_total(&self, porc_imp: Option<f32>, porc_desc: Option<f32>) -> f32 {
-        let mut precio = self.precio;
+    fn calcular_precio_total(&self, porc_imp: Option<f32>, porc_desc: Option<f32>) -> f64 {
+        let mut precio: f64 = self.precio as f64;
 
         if porc_desc.is_some() { precio-= self.aplicar_descuento(porc_desc.unwrap()) }
         if porc_imp.is_some() { precio+= self.calcular_impuestos(porc_imp.unwrap()) }
         
         precio
     }
-
 }
 
 fn main() {
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Producto;
+
+    #[test]
+    fn test_limites() {
+        let producto = Producto::new("asd".to_string(), f32::MAX, i32::MAX);
+
+        // should not panic
+        let precio_total_1 = producto.calcular_precio_total(Some(f32::MAX), Some(f32::MAX));
+        let precio_total_2 = producto.calcular_precio_total(Some(f32::MIN), Some(f32::MIN));
+    }
+
 }

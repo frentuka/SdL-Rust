@@ -35,13 +35,8 @@ impl Persona {
         println!("Nombre: {}, Edad: {}", self.nombre, self.edad);
         if let Some(val) = &self.direccion { println!("Dirección: {}", val) }
     }
-
 }
 
 fn main() {
 
-}
-
-fn asd() {
-    println!("asd");
 }

@@ -38,6 +38,7 @@ use std::collections::VecDeque;
 // - nombre
 // - la dirección
 // - un id.
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Veterinaria {
     pub nombre: String,
     pub direccion: String,
@@ -46,9 +47,10 @@ pub struct Veterinaria {
     pub atenciones: Vec<Atencion>
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub enum Animal {
-    Perro, Gato, Caballo, Otros
+    Perro, Gato, Caballo,
+    #[default] Otros
 }
 
 // De la mascota se conoce
@@ -56,7 +58,7 @@ pub enum Animal {
 // - edad
 // - tipo de animal (perro, gato, caballo, otros)
 // - su dueño.
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Mascota {
     pub nombre: String,
     pub edad: u16,
@@ -68,7 +70,7 @@ pub struct Mascota {
 // - nombre
 // - direccion
 // - teléfono de contacto.
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Dueno {
     pub nombre: String,
     pub direccion: String,
@@ -80,7 +82,7 @@ pub struct Dueno {
 // - el diagnóstico final
 // - tratamiento
 // - fecha de la próxima visita si es que se requiere.
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Atencion {
     pub mascota: Mascota,
     pub diagnostico: String,
@@ -89,7 +91,7 @@ pub struct Atencion {
 }
 
 // Nota: para la fecha utilice lo implementado en el punto 3.
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Fecha {
     pub dia: u8,
     pub mes: u8,

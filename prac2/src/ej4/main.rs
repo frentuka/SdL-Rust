@@ -14,3 +14,14 @@ fn cantidad_pares(arr: Vec<i32>) -> u32 {
     }
     cant
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::cantidad_pares;
+
+    #[test]
+    fn test() {
+        assert_eq!(cantidad_pares(Vec::new()), 0, "Se esperan 0 números");
+    }
+    
+}
