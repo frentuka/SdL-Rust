@@ -20,8 +20,9 @@ struct Producto {
 }
 
 impl Producto {
-    fn new(nombre: String, precio: f32, id: i32) -> Producto {
-        Producto { nombre, precio, id }
+    fn new(nombre: String, precio: f32, id: i32) -> Result<Producto, String> {
+        if precio < 0.0 { return Err("Un precio no puede ser negativo.".to_string()) }
+        Ok(Producto { nombre, precio, id })
     }
 
     fn calcular_impuestos(&self, porc: f32) -> f64 {
@@ -51,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_limites() {
-        let producto = Producto::new("asd".to_string(), f32::MAX, i32::MAX);
+        let producto = Producto::new("asd".to_string(), f32::MAX, i32::MAX).unwrap();
 
         // should not panic
         let precio_total_1 = producto.calcular_precio_total(Some(f32::MAX), Some(f32::MAX));
