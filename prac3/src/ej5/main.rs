@@ -11,7 +11,6 @@
         precio total a pagar aplicando impuesto y descuento. Tenga en cuenta que los
         parámetros son opcionales.
 */
-use std::io::stdout;
 
 struct Producto {
     nombre: String,
