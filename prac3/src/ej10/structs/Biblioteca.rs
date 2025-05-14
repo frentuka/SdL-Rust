@@ -524,7 +524,10 @@ mod tests {
         assert_eq!(buscar_prestamo5.clone().unwrap().isbn, 5, "El préstamo encontrado debería ser sobre el libro #5");
         assert_eq!(buscar_prestamo3.clone().unwrap().isbn, 3, "El préstamo encontrado debería ser sobre el libro #3");
 
-        assert_eq!(buscar_prestamo5.unwrap().estado, EstadoPrestamo::Devuelto, "El préstamo encontrado debería haber sido devuelto");
-        assert_eq!(buscar_prestamo3.unwrap().estado, EstadoPrestamo::Devuelto, "El préstamo encontrado debería haber sido devuelto");
+        assert_eq!(buscar_prestamo5.clone().unwrap().estado, EstadoPrestamo::Devuelto, "El préstamo encontrado debería haber sido devuelto");
+        assert_eq!(buscar_prestamo3.clone().unwrap().estado, EstadoPrestamo::Devuelto, "El préstamo encontrado debería haber sido devuelto");
+
+        assert!(buscar_prestamo5.unwrap().devolucion.is_some(), "El préstamo encontrado debería haber sido devuelto");
+        assert!(buscar_prestamo3.unwrap().devolucion.is_some(), "El préstamo encontrado debería haber sido devuelto");
     }
 }
