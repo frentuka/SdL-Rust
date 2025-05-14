@@ -39,4 +39,9 @@ path = "src/ej8/main.rs"
 name = "prac3ej9"
 path = "src/ej9/main.rs"
 
+[[bin]]
+name = "prac3ej10"
+path = "src/ej10/main.rs"
+
 [dependencies]
+rand = { version = "0.9.1", features = [] }

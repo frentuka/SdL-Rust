@@ -40,7 +40,7 @@ mod tests_rectangulo {
     use crate::Rectangulo;
 
     #[test]
-    fn test_limites_i32() {
+    fn test_limites() {
         let mi_rectangulo = Rectangulo::new(u16::MAX, u16::MAX);
         let mi_rectangulo_neg = Rectangulo::new(u16::MIN, u16::MIN);
         let mi_rectangulo_0 = Rectangulo::new(0, 0);

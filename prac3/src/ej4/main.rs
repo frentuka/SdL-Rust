@@ -81,12 +81,12 @@ mod test_triangulo {
     #[test]
     fn test_triangulo_types() {
         let triangulo_eq = Triangulo::new(1.0, 1.0, 1.0).unwrap();
-        assert_eq!(triangulo_eq.determinar_tipo(), TrianguloTypes::Equilatero);
+        assert_eq!(triangulo_eq.determinar_tipo(), TrianguloTypes::Equilatero, "Debería ser equilátero");
 
         let triangulo_is = Triangulo::new(1.0, 1.0, 2.0).unwrap();
-        assert_eq!(triangulo_is.determinar_tipo(), TrianguloTypes::Isosceles);
+        assert_eq!(triangulo_is.determinar_tipo(), TrianguloTypes::Isosceles, "Debería ser isósceles");
 
         let triangulo_es = Triangulo::new(1.0, 2.0, 3.0).unwrap();
-        assert_eq!(triangulo_es.determinar_tipo(), TrianguloTypes::Escaleno);
+        assert_eq!(triangulo_es.determinar_tipo(), TrianguloTypes::Escaleno, "Debería ser escaleno");
     }
 }
