@@ -44,7 +44,7 @@ enum ErrorDevolverLibro {
 }
 
 impl Biblioteca {
-    
+
     /// ### fn new() -> Biblioteca
     /// Crea una nueva instancia de biblioteca
     ///
@@ -200,7 +200,7 @@ impl Biblioteca {
             None => {
                 // insertar cliente
                 self.prestamos.insert(cliente.id, (cliente, vec![prestamo]));
-                if let Some(libro) = self.libros.get_mut(&isbn) { libro.stock-= 1 } // compiler suggestion
+                self.decrementar_stock_libro(isbn);
                 Ok(1)
             }
         }
@@ -323,7 +323,7 @@ impl Biblioteca {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use crate::structs::biblioteca::{Biblioteca, ErrorDecrementarStock, ErrorIncrementarStock};
+    use crate::structs::biblioteca::{Biblioteca, ErrorDecrementarStock, ErrorIncrementarStock, ErrorRealizarPrestamo};
     use crate::structs::cliente::Cliente;
     use crate::structs::fecha::Fecha;
     use crate::structs::libro::Libro;
@@ -335,7 +335,9 @@ mod tests {
             "donde queda".to_string(),
             Some(BTreeMap::from(
                 [(1, libro_economia_1()),
+                    (2, libro_xd_2()),
                     (3, libro_harrypotter_3()),
+                    (4, libro_asd_4()),
                     (5, libro_estadistica_5()),
                     (u32::MAX as u64, libro_algo_u32max())])),
             None)
@@ -363,11 +365,25 @@ mod tests {
         libro.stock = 1;
         libro
     }
+    fn libro_xd_2() -> Libro {
+        let mut libro = Libro::default();
+        libro.isbn = 2;
+        libro.titulo = "xd".to_string();
+        libro.stock = 2;
+        libro
+    }
     fn libro_harrypotter_3() -> Libro {
         let mut libro = Libro::default();
         libro.isbn = 3;
         libro.titulo = "Harry Potter y qsy q mas".to_string();
         libro.stock = 3;
+        libro
+    }
+    fn libro_asd_4() -> Libro {
+        let mut libro = Libro::default();
+        libro.isbn = 4;
+        libro.titulo = "asd".to_string();
+        libro.stock = 4;
         libro
     }
     fn libro_estadistica_5() -> Libro {
@@ -529,5 +545,26 @@ mod tests {
 
         assert!(buscar_prestamo5.unwrap().devolucion.is_some(), "El préstamo encontrado debería haber sido devuelto");
         assert!(buscar_prestamo3.unwrap().devolucion.is_some(), "El préstamo encontrado debería haber sido devuelto");
+
+        // init max prestamos (5)
+
+        let p1 = biblioteca.realizar_prestamo(cliente_pepe(), 1, fecha5.clone());
+        let p2 = biblioteca.realizar_prestamo(cliente_pepe(), 2, fecha5.clone());
+        let p3 = biblioteca.realizar_prestamo(cliente_pepe(), 3, fecha5.clone());
+        let p4 = biblioteca.realizar_prestamo(cliente_pepe(), 4, fecha5.clone());
+        let p5 = biblioteca.realizar_prestamo(cliente_pepe(), 5, fecha5.clone());
+
+        let p6 = biblioteca.realizar_prestamo(cliente_pepe(), u32::MAX as u64, fecha3.clone());
+
+        // check
+
+        assert!(p1.is_ok(), "El préstamo debería ser exitoso");
+        assert!(p2.is_ok(), "El préstamo debería ser exitoso");
+        assert!(p3.is_ok(), "El préstamo debería ser exitoso");
+        assert!(p4.is_ok(), "El préstamo debería ser exitoso");
+        assert!(p5.is_ok(), "El préstamo debería ser exitoso");
+
+        assert!(p6.is_err(), "El préstamo no debería ser exitoso");
+        assert_eq!(p6.unwrap_err(), ErrorRealizarPrestamo::PrestamosMaximosAlcanzados, "Debería haberse alcanzado el límite máximo de préstamos");
     }
 }
