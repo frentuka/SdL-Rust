@@ -5,7 +5,7 @@ use crate::structs::prestamo::{EstadoPrestamo, Prestamo};
 use super::libro::Libro;
 
 /// # Biblioteca
-/// 
+///
 /// `nombre: String` - Nombre de la biblioteca<br>
 /// `direccion: String` - Dirección física de la biblioteca<br>
 /// `libros: BTreeMap<u64, Libro>` - Libros de la biblioteca<br>
@@ -15,7 +15,7 @@ pub struct Biblioteca {
     pub nombre: String,
     pub direccion: String,
     pub libros: BTreeMap<u64, Libro>,
-    pub prestamos: BTreeMap<u32, (Cliente, Vec<Prestamo>)> // <ID cliente, Préstamos>
+    pub prestamos: BTreeMap<u32, (Cliente, Vec<Prestamo>)> // <ID cliente, (Cliente, Vec<Préstamo>)>
 }
 
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
@@ -44,7 +44,7 @@ enum ErrorDevolverLibro {
 }
 
 impl Biblioteca {
-
+    
     /// ### fn new() -> Biblioteca
     /// Crea una nueva instancia de biblioteca
     ///
