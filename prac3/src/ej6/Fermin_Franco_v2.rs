@@ -170,11 +170,15 @@ impl Estudiante {
          */
 
         for examen in &self.notas {
-            if min_nota.is_none() { min_nota = Some(examen) }
-            if max_nota.is_none() { max_nota = Some(examen) }
+            match min_nota {
+                Some(val) => if examen.nota < val.nota { min_nota = Some(examen) }
+                None => min_nota = Some(examen)
+            }
 
-            if examen.nota < min_nota.unwrap().nota { min_nota = Some(examen); }
-            if examen.nota > max_nota.unwrap().nota { max_nota = Some(examen); }
+            match max_nota {
+                Some(val) => if examen.nota > val.nota { max_nota = Some(examen) }
+                None => max_nota = Some(examen)
+            }
 
             suma_total_notas+= examen.nota;
         }

@@ -1,0 +1,26 @@
+[package]
+name = "prac4"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[[bin]]
+path = "src/ej1/main.rs"
+name = "prac4ej1"
+
+[[bin]]
+path = "src/ej2/main.rs"
+name = "prac4ej2"
+
+[[bin]]
+path = "src/ej3/main.rs"
+name = "prac4ej3"
+
+[[bin]]
+path = "src/ej4/main.rs"
+name = "prac4ej4"
+
+[[bin]]
+path = "src/ej5/main.rs"
+name = "prac4ej5"
