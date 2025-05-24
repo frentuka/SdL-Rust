@@ -3,9 +3,9 @@ const CALIFICACION_MAXIMA: f32 = 10.0;
 /// ### Examen
 /// `materia: String` - Nombre de la materia del examen<br>
 /// `nota: f32` - Calificación de un Estudiante en dicho examen
-#[derive(Debug, Default, PartialEq, Clone, PartialOrd)]
-struct Examen {
-    materia: String,
+#[derive(Debug, PartialEq)]
+struct Examen<'e> {
+    materia: &'e str,
     nota: f32
 }
 
@@ -13,11 +13,10 @@ struct Examen {
 /// `nombre: String` - Nombre del estudiante<br>
 /// `id: u32` - ID del estudiante<br>
 /// `notas: Vec<Examen>` - Vector de exámenes que rindió el estudiante
-#[derive(Debug, Default, PartialEq, Clone, PartialOrd)]
-struct Estudiante {
-    nombre: String,
+struct Estudiante<'a, 'e> {
+    nombre: &'a str,
     id: u32,
-    notas: Vec<Examen>
+    notas: Vec<Examen<'e>>
 }
 
 /// ### InformeAcademico<br>
@@ -26,16 +25,16 @@ struct Estudiante {
 /// `promedio_notas: Option<f32>` - Promedio general de notas<br>
 /// `max_nota: Option<&Examen>` - Nota mas alta y la materia correspondiente<br>
 /// `min_nota: Option<&Examen>` - Nota más baja y la materia correspondiente
-struct InformeAcademico<'a> {
-    nombre: String,
+struct InformeAcademico<'a, 'e> {
+    nombre: &'a str,
     id: u32,
     examenes_rendidos: u16,
     promedio_notas: Option<f32>,
-    max_nota: Option<&'a Examen>,
-    min_nota: Option<&'a Examen>
+    max_nota: Option<&'a Examen<'e>>,
+    min_nota: Option<&'a Examen<'e>>
 }
 
-impl Examen {
+impl<'e> Examen<'e> {
     /// ### new(materia, nota) -> Option\<Examen\>
     /// Crea y devuelve una nueva instancia de Examen si los datos proporcionados son válidos
     /// 
@@ -50,13 +49,13 @@ impl Examen {
     /// #### Excepciones inválidas:
     /// `nota < 0.0` - La nota debe ser un número positivo<br>
     /// `nota > CALIFICACION_MAXIMA` - La nota debe ser menor o igual a la calificación máxima permitida
-    fn new(materia: String, nota: f32) -> Option<Examen> {
+    fn new(materia: &str, nota: f32) -> Option<Examen> {
         if (0.0..=CALIFICACION_MAXIMA).contains(&nota) { return Some(Examen { materia, nota }) }
         None
     }
 }
 
-impl<'a> InformeAcademico<'a> {
+impl<'a, 'e> InformeAcademico<'a, 'e> {
     
     /// ### fn new(nombre, examenes_rendidos, promedio_notas, max_nota, min_nota) -> Option\<InformeAcademico\>
     /// Crea y devuelve una nuvea instancia de InformeAcademico si los datos proporcionados son válidos
@@ -75,13 +74,13 @@ impl<'a> InformeAcademico<'a> {
     /// #### Incongruencias
     /// `examenes_rendidos == 0` - Pero alguno de los datos (promedio, max_nota, min_nota) presenta información<br>
     /// `examenes_rendidos != 0` - Pero alguno de los datos (promedio, max_not, min_nota) no presenta información
-    fn new(nombre: String,
+    fn new(nombre: &'a str,
            id: u32,
            examenes_rendidos: u16,
            promedio_notas: Option<f32>,
-           max_nota: Option<&'a Examen>,
-           min_nota: Option<&'a Examen>
-    ) -> Option<InformeAcademico<'a>> {
+           max_nota: Option<&'e Examen>,
+           min_nota: Option<&'e Examen>
+    ) -> Option<InformeAcademico<'a, 'e>> {
         
         // Si hay al menos un examen rendido todos los campos deben ser Some()
         if examenes_rendidos != 0 && (
@@ -103,10 +102,10 @@ impl<'a> InformeAcademico<'a> {
     }
 }
 
-impl Estudiante {
+impl<'a, 'e> Estudiante<'a, 'e> {
     /// ### new(nombre, id, notas) -> Estudiante
     /// Crea una nueva instancia de Estudiante
-    fn new(nombre: String, id: u32, notas: Vec<Examen>) -> Estudiante {
+    fn new(nombre: &'a str, id: u32, notas: Vec<Examen<'e>>) -> Estudiante<'a, 'e> {
         Estudiante { nombre, id, notas }
     }
 
@@ -193,7 +192,7 @@ impl Estudiante {
         //   || self.notas == 0 && (promedio_notas == Some(f32) || max_nota == Some(Examen) || min_nota == Some(Examen))
         // lo cual, creo, es imposible.
         InformeAcademico::new(
-            self.nombre.clone(),
+            self.nombre,
             self.id,
             self.notas.len() as u16,
             promedio_notas,
@@ -209,18 +208,18 @@ fn main() { }
 mod test {
     use crate::{Estudiante, Examen};
 
-    fn estudiante() -> Estudiante {
-        let examen1 = Examen::new("SdL Rust".to_string(), 4.0);
-        let examen2 = Examen::new("AyED".to_string(), 5.0);
-        let examen3 = Examen::new("FOD".to_string(), 6.0);
-        let examen4 = Examen::new("Matematica 3".to_string(), 7.0);
+    fn estudiante<'a, 'e>() -> Estudiante<'a, 'e> {
+        let examen1 = Examen::new("SdL Rust", 4.0);
+        let examen2 = Examen::new("AyED", 5.0);
+        let examen3 = Examen::new("FOD", 6.0);
+        let examen4 = Examen::new("Matematica 3", 7.0);
 
         assert!(examen1.is_some(), "Examen1 debería brindar Some(Examen)");
         assert!(examen2.is_some(), "Examen2 debería brindar Some(Examen)");
         assert!(examen3.is_some(), "Examen3 debería brindar Some(Examen)");
         assert!(examen4.is_some(), "Examen4 debería brindar Some(Examen)");
 
-        Estudiante::new("jorgito".to_string(), 13548, vec![
+        Estudiante::new("jorgito", 13548, vec![
             examen1.unwrap(),
             examen2.unwrap(),
             examen3.unwrap(),
@@ -268,7 +267,7 @@ mod test {
 
     #[test]
     fn test_informe_academico_none() {
-        let estudiante = Estudiante::new("jorgito".to_string(), 29, Vec::new());
+        let estudiante = Estudiante::new("jorgito", 29, Vec::new());
         let informe = estudiante.generar_informe();
 
         assert!(informe.is_some(), "Informe debería brindar Some(InformeAcademico)");

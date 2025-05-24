@@ -1,0 +1,136 @@
+
+/*
+
+2- Dado el siguiente struct:
+    struct Persona<'a> {
+        nombre:&'a str,
+        apellido:&'a str,
+        direccion:&'a str,
+        ciudad:&'a str,
+        salario:f64,
+        edad:u8,
+    }
+a- Escriba una función que reciba un vector de personas y otro parámetro que indica un salario y retorna un listado de personas donde el salario es mayor al parámetro recibido.
+b- Escriba una función que reciba un vector de personas, edad y el nombre de una ciudad, y retorna las personas mayores al parámetro edad y que viven en el valor del parámetro ciudad.
+c- Escriba una función que reciba un vector de personas y un nombre de una ciudad y retorna true si todas las personas viven en la ciudad pasada por parámetro, false caso contrario.
+d- Escriba una función que reciba un vector de personas y un nombre de una ciudad y retorna true si al menos vive una persona en la ciudad pasada por parámetro,, false caso contrario.
+e- Escriba una función que reciba un arreglo de personas y una persona y retorna true si la persona existe en el arreglo, false caso contrarioUNLP. Facultad de Informática.
+Seminario de Lenguajes opción Rust Cursada 2023
+f -Escriba una función que reciba un arreglo de personas y retorna un arreglo con las edades de las personas.
+g - Escriba una función que reciba un arreglo de personas y retorna la persona con el menor salario y la persona con el mayor salario, en caso de que haya más de una persona en cada categoría desempatar por la edad más grande.
+
+Nota: Implemente todos los métodos y traits que considere para resolver los ejercicios.
+    Todos los ejercicios deben resolverse con iterator y closure.
+
+ */
+
+#[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
+struct Persona<'a> {
+    nombre:&'a str,
+    apellido:&'a str,
+    direccion:&'a str,
+    ciudad:&'a str,
+    salario:f64,
+    edad:u8,
+}
+
+trait VecPersona<'a> {
+    fn a_personas_salario_mayor(&'a self, num: f64) -> Option<Vec<&'a Persona<'a>>>;
+    fn b_personas_mayores_edad_en_ciudad(&'a self, ciudad: &'a str, edad: u8) -> Vec<&'a Persona<'a>>;
+    fn c_todos_viven_en_ciudad(&'a self, ciudad: &'a str) -> bool;
+    fn d_alguien_vive_en_ciudad(&'a self, ciudad: &'a str) -> bool;
+    fn e_persona_existe(&'a self, persona: &Persona) -> bool;
+    fn f_listar_edades(&'a self) -> Vec<u8>;
+    fn g_mayor_menor_salario(&'a self) -> Option<(&'a Persona<'a>, &'a Persona<'a>)>;
+}
+
+impl<'a> VecPersona<'a> for Vec<Persona<'a>> {
+    // a- Escriba una función que reciba un vector de personas y otro parámetro que indica un salario
+    //  y retorna un listado de personas donde el salario es mayor al parámetro recibido.
+
+    fn a_personas_salario_mayor(&'a self, num: f64) -> Option<Vec<&'a Persona<'a>>> {
+        if num < 0.0 { return None } // num debe ser un número positivo
+
+        let personas_filtrado = self.iter()
+            .filter(|p| p.salario > num)
+            .collect();
+
+        Some(personas_filtrado)
+    }
+
+    // b- Escriba una función que reciba un vector de personas, edad y el nombre de una ciudad,
+    //  y retorna las personas mayores al parámetro edad y que viven en el valor del parámetro ciudad.
+
+    fn b_personas_mayores_edad_en_ciudad(&'a self, ciudad: &'a str, edad: u8) -> Vec<&'a Persona<'a>> {
+        self.iter().filter(
+            |p| p.edad > edad && p.ciudad == ciudad
+        ).collect()
+    }
+
+    // c- Escriba una función que reciba un vector de personas y un nombre de una ciudad
+    //  y retorna true si todas las personas viven en la ciudad pasada por parámetro, false caso contrario.
+
+    fn c_todos_viven_en_ciudad(&'a self, ciudad: &'a str) -> bool {
+        self.iter().all(|p| p.ciudad == ciudad)
+    }
+
+    // d- Escriba una función que reciba un vector de personas y un nombre de una ciudad
+    //  y retorna true si al menos vive una persona en la ciudad pasada por parámetro,, false caso contrario.
+
+    fn d_alguien_vive_en_ciudad(&'a self, ciudad: &'a str) -> bool {
+        self.iter().any(|p| p.ciudad == ciudad)
+    }
+
+    // e- Escriba una función que reciba un arreglo de personas y una persona
+    //  y retorna true si la persona existe en el arreglo, false caso contrario
+
+    fn e_persona_existe(&self, persona: &Persona) -> bool {
+        self.iter().any(|p| p == persona)
+    }
+
+    // f -Escriba una función que reciba un arreglo de personas
+    //  y retorna un arreglo con las edades de las personas.
+
+    fn f_listar_edades(&self) -> Vec<u8> {
+        self.iter().map(|p| {
+            p.edad
+        }).collect()
+    }
+
+    // g - Escriba una función que reciba un arreglo de personas
+    //  y retorna la persona con el menor salario y la persona con el mayor salario.
+    //  En caso de que haya más de una persona en cada categoría desempatar por la edad más grande.
+
+    fn g_mayor_menor_salario(&'a self) -> Option<(&'a Persona<'a>, &'a Persona<'a>)> {
+        if self.len() < 2 { return None } // no min/max can be calculated with 1 or 0 elements
+        
+        let first_person = self.first();
+        let first_person = first_person?;
+        
+        let mut res_index: (usize, usize) = (0, 0);
+        let mut res: (&Persona, &Persona) = (first_person, first_person);
+        
+        self.iter().enumerate().for_each(
+            | (i, p) | {
+                if p.salario < res.0.salario {
+                    res_index.0 = i;
+                    res.0 = p;
+                } else if p.salario > res.1.salario {
+                    res_index.1 = i;
+                    res.1 = p;
+                } else if p.salario == res.0.salario && p.edad > res.0.edad {
+                    res_index.0 = i;
+                    res.0 = p;
+                } else if p.salario == res.1.salario && p.edad > res.1.edad {
+                    res_index.1 = i;
+                    res.0 = p;
+                }
+            }
+        );
+        
+        Some(res)
+    }
+
+}
+
+fn main() { }
