@@ -40,7 +40,16 @@ impl<T> VerificarPrimo for T where T: Copy + Into<i128> {
     }
 }
 
-fn main() { }
+fn main() {
+    let numero = 503213131.es_primo();
+    let vec_numero: Vec<i32> = vec![1, 2, 3, 4, 5];
+    
+    println!("{}", numero.es_primo());
+    println!("{:?}", vec_numero.contar_primos());
+    
+    let mut string_comun = String::from("asdasdas");
+    let mi_str = "esto es un &str";
+}
 
 #[cfg(test)]
 mod tests {
