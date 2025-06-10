@@ -57,8 +57,93 @@ N
 ➢ Saber cual es la criptomoneda que más volumen de compras tiene
 
  */
-extern crate core;
 
-mod structs;
+//    De los usuarios se conoce:
+//         nombre, apellido, email, dni, y si está validada su identidad o no.
+//     Cada usuario tiene un balance de las criptomonedas que se ofrecen en la plataforma.
 
-fn main() {}
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::ops::{AddAssign, SubAssign};
+
+// Create custom struct in order to implement Hash derive macro
+#[derive(Debug)]
+pub struct CryptoBalance<'a>(pub HashMap<&'a str, f64>);
+impl<'a> CryptoBalance<'a> {
+    fn new() -> Self {
+        CryptoBalance(HashMap::new())
+    }
+}
+impl<'a> Hash for CryptoBalance<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let mut keys: Vec<&&'a str> = self.0.keys().collect();
+        keys.sort_unstable();
+        
+        for key in keys {
+            key.hash(state);
+            let value = self.0.get(key).unwrap(); // safe unwrap, key exists
+            let bits = value.to_bits();
+            let hash_value = if value.is_nan() { u64::MAX } else { bits }; // hanle NaN
+            hash_value.hash(state);
+        }
+    }
+}
+impl<'a> PartialEq for CryptoBalance<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.len() != other.0.len() { return false }
+        
+        self.0.iter().all(|(k, v)| {
+            other.0.get(k).map_or(false, |v2| {
+                v.is_nan() && v2.is_nan() || v.to_bits() == v2.to_bits()
+            })
+        })
+    }
+}
+impl<'a> Eq for CryptoBalance<'a> {}
+
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+pub struct FiatBalance(pub f64);
+impl FiatBalance {
+    fn new() -> Self {
+        FiatBalance(0.0)
+    }
+}
+impl Hash for FiatBalance {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+impl AddAssign for FiatBalance {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+impl SubAssign for FiatBalance {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+impl From<f64> for FiatBalance {
+    fn from(value: f64) -> Self {
+        FiatBalance(value)
+    }
+}
+impl Into<f64> for FiatBalance {
+    fn into(self) -> f64 {
+        self.0
+    }
+}
+
+// user
+
+#[derive(Debug, Hash)]
+pub struct User<'a> {
+    pub first_name: &'a str,
+    pub last_name: &'a str,
+    pub email: &'a str,
+    pub dni: u32, // primary key
+    pub identity_validation: bool,
+    pub fiat_balance: FiatBalance,
+    pub crypto_balance: CryptoBalance<'a>
+}
