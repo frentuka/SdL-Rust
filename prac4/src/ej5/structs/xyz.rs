@@ -86,6 +86,7 @@ pub enum ErrorBuySell<'a> {
     CryptocurrencyNotQuoted { crypto_prefix: &'a str },
     UserNotFound { user_dni: u32 },
     NotEnoughBalance { balance: f64, balance_needed: f64 },
+    NegativeAmount,
     Unknown(String)
 }
 
@@ -102,7 +103,6 @@ impl<'a> XYZ<'a> {
             date,
             TransactionType::FiatDeposit,
             fiat_amount,
-            None,
             user_dni
         ) {
             Ok(transaction) => {
@@ -131,7 +131,7 @@ impl<'a> XYZ<'a> {
 
         // check 1: invalid fiat amount
         if fiat_amount < 0.0 {
-            return Err(ErrorBuySell::InvalidInputAmount { amount: fiat_amount })
+            return Err(ErrorBuySell::NegativeAmount)
         }
 
         match CryptoTransaction::new(
@@ -139,7 +139,6 @@ impl<'a> XYZ<'a> {
             TransactionType::CryptoBuy,
             crypto_prefix,
             fiat_amount,
-            None,
             user_dni
         ) {
             Ok(transaction) => {
@@ -187,16 +186,15 @@ impl<'a> XYZ<'a> {
 
         // check 1: amounts should be higher than 0
         if crypto_amount <= 0.0 {
-            return Err(ErrorBuySell::InvalidInputAmount { amount: crypto_amount })
+            return Err(ErrorBuySell::NegativeAmount)
         }
 
         match CryptoTransaction::new(
             date,
-            TransactionType::CryptoBuy,
+            TransactionType::CryptoSell,
             crypto_prefix,
             crypto_amount,
-            Some(user_dni),
-            0 // 0 represents XYZ
+            user_dni
         ) {
             Ok(transaction) => {
                 // process sell

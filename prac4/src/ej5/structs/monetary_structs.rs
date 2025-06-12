@@ -26,7 +26,13 @@ impl<'a> Blockchain<'a> {
     // Luego se genera una transacción con los siguientes datos:
     // fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
 
-    fn
+    fn withdraw() -> Result<&'a str, ErrorNewTransaction> {
+        
+        
+        
+        
+        Err(ErrorNewTransaction::InvalidDate)
+    }
 }
 
 //     Cada usuario tiene un balance de las criptomonedas que se ofrecen en la plataforma.
