@@ -24,7 +24,7 @@ pub struct BlockchainTransaction<'a> {
 }
 
 impl<'a> BlockchainTransaction<'a> {
-    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, blockchain: &'a str, hash: Option<BlockchainTransactionHash>, crypto: &'a str, quote: Quote) -> Result<Self, ErrorNewTransaction> {
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, blockchain: &'a str, hash: Option<BlockchainTransactionHash>, crypto: &'a str, quote: Quote) -> Result<Self, ErrorNewTransaction<'a>> {
         // invalid date
         if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
 
@@ -52,12 +52,13 @@ impl<'a> BlockchainTransaction<'a> {
 
 pub struct Blockchain<'a> {
     pub name: &'a str,
-    pub prefix: &'a str
+    pub prefix: &'a str,
+    pub supported_cryptos: Vec<&'a str>,
 }
 
 impl<'a> Blockchain<'a> {
-    fn new(name: &'a str, prefix: &'a str) -> Self {
-        Blockchain { name, prefix }
+    fn new(name: &'a str, prefix: &'a str, supported_cryptos: Vec<&'a str>) -> Self {
+        Blockchain { name, prefix, supported_cryptos }
     }
 
     // ➢ Retirar criptomoneda a blockchain: dado un monto de una cripto y una blockchain
@@ -68,7 +69,9 @@ impl<'a> Blockchain<'a> {
     // fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
 
     fn withdraw(&self, data: CommonTransactionData, transaction_type: TransactionType, crypto: &'a str, quote: Quote) -> Result<BlockchainTransaction, ErrorNewTransaction> {
-        // all checks are made by BlockchainTransaction::new()
+        if !self.supported_cryptos.contains(&crypto) { return Err(ErrorNewTransaction::CryptoNotSupportedByBlockchain { crypto, blockchain: self.name }) }
+        
+        // all other checks are made by BlockchainTransaction::new()
         BlockchainTransaction::new(
             data,
             transaction_type,
@@ -132,11 +135,12 @@ pub struct CommonTransactionData {
 //      donde los datos que se guardan son:fecha, tipo(ingreso de dinero), monto, usuario.
 
 #[derive(Error)]
-pub enum ErrorNewTransaction {
+pub enum ErrorNewTransaction<'a> {
     InvalidDate,
     InvalidInputAmount{ amount: f64 },
     InvalidTransactionType { transaction_type: TransactionType },
     BlockchainNotDeclared,
+    CryptoNotSupportedByBlockchain { crypto: &'a str, blockchain: &'a str },
     FiatWithdrawalNeedsMean
 }
 
@@ -175,8 +179,8 @@ pub struct FiatTransaction {
 
 // all FIAT transfers will be treated as Argentine Peso transfers
 
-impl FiatTransaction {
-    pub fn new(data: CommonTransactionData, transaction_type: TransactionType) -> Result<Self, ErrorNewTransaction> {
+impl<'a> FiatTransaction {
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType) -> Result<Self, ErrorNewTransaction<'a>> {
         match transaction_type {
             TransactionType::FiatDeposit => (),
             TransactionType::FiatWithdrawal { .. } => (),

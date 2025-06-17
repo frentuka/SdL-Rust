@@ -72,21 +72,21 @@ pub struct XYZ<'a> {
 //
 
 #[derive(Error)]
-pub enum ErrorFiatDeposit {
-    FiatTransactionError(ErrorNewTransaction),
+pub enum ErrorFiatDeposit<'a> {
+    FiatTransactionError(ErrorNewTransaction<'a>),
     UserNotFound{ user_dni: u32 }
 }
 
 #[derive(Error)]
-pub enum ErrorFiatWithdraw {
-    FiatTransactionError(ErrorNewTransaction),
+pub enum ErrorFiatWithdraw<'a> {
+    FiatTransactionError(ErrorNewTransaction<'a>),
     UserNotFound{ user_dni: u32 },
     NotEnoughBalance{ balance: f64, balance_needed: f64 },
 }
 
 #[derive(Error)]
 pub enum ErrorBlockchainDeposit<'a> {
-    BlockchainTransactionError(ErrorNewTransaction),
+    BlockchainTransactionError(ErrorNewTransaction<'a>),
     BlockchainNotFound{ blockchain: &'a str },
     CryptoNotQuoted{ crypto: &'a str },
     UserNotFound{ user_dni: u32 },
@@ -94,7 +94,7 @@ pub enum ErrorBlockchainDeposit<'a> {
 
 #[derive(Error)]
 pub enum ErrorBlockchainWithdraw<'a> {
-    BlockchainTransactionError(ErrorNewTransaction),
+    BlockchainTransactionError(ErrorNewTransaction<'a>),
     BlockchainNotFound{ blockchain: &'a str },
     CryptoNotQuoted{ crypto: &'a str },
     UserNotFound{ user_dni: u32 },
@@ -103,7 +103,7 @@ pub enum ErrorBlockchainWithdraw<'a> {
 
 #[derive(Error)]
 pub enum ErrorBuySell<'a> {
-    CryptoTransactionError(ErrorNewTransaction),
+    CryptoTransactionError(ErrorNewTransaction<'a>),
     CryptocurrencyNotQuoted { crypto_prefix: &'a str },
     UserNotFound { user_dni: u32 },
     NotEnoughBalance { balance: f64, balance_needed: f64 },
