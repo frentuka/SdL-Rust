@@ -5,7 +5,7 @@ use std::fmt;
 const NOMBRE_MESES: [&str; 12] = ["Enero", "Febrero", "Marzo", "Abril",
     "Mayo", "Junio", "Julio", "Agosto",
     "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy, Hash)]
 pub struct Date {
     pub(crate) day: u8,
     pub(crate) month: u8,

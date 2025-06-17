@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 ErrorProcMacro = { path = "R:/appcrap/RustRover/SdL-Rust/custom_crates/ErrorProcMacro" }
+rand = "0.9.1"
 
 [[bin]]
 path = "src/ej1/main.rs"

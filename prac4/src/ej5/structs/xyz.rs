@@ -56,13 +56,10 @@ Además la empresa desea saber lo siguiente en base a sus operaciones:
 ➢ Saber cual es la criptomoneda que más volumen de compras tiene
 
 */
-use std::cmp::{Ordering, PartialOrd};
-use std::collections::{BTreeMap, HashMap};
-use std::hash::Hash;
 use ErrorProcMacro::Error;
-use crate::structs::date::Date;
-use crate::structs::monetary_structs::{Blockchain, CryptoTransaction, ErrorNewTransaction, FiatTransaction, Quote, TransactionType};
-use crate::structs::user::{FiatBalance, User};
+use std::collections::{BTreeMap, HashMap};
+use crate::structs::user::{Balance, User};
+use crate::structs::monetary_structs::{Blockchain, BlockchainTransaction, CommonTransactionData, CryptoTransaction, ErrorNewTransaction, FiatTransaction, Quote, TransactionType, WithdrawalMean};
 
 pub struct XYZ<'a> {
     pub users: BTreeMap<u32, User<'a>>,
@@ -75,9 +72,33 @@ pub struct XYZ<'a> {
 //
 
 #[derive(Error)]
-pub enum ErrorDeposit {
+pub enum ErrorFiatDeposit {
     FiatTransactionError(ErrorNewTransaction),
     UserNotFound{ user_dni: u32 }
+}
+
+#[derive(Error)]
+pub enum ErrorFiatWithdraw {
+    FiatTransactionError(ErrorNewTransaction),
+    UserNotFound{ user_dni: u32 },
+    NotEnoughBalance{ balance: f64, balance_needed: f64 },
+}
+
+#[derive(Error)]
+pub enum ErrorBlockchainDeposit<'a> {
+    BlockchainTransactionError(ErrorNewTransaction),
+    BlockchainNotFound{ blockchain: &'a str },
+    CryptoNotQuoted{ crypto: &'a str },
+    UserNotFound{ user_dni: u32 },
+}
+
+#[derive(Error)]
+pub enum ErrorBlockchainWithdraw<'a> {
+    BlockchainTransactionError(ErrorNewTransaction),
+    BlockchainNotFound{ blockchain: &'a str },
+    CryptoNotQuoted{ crypto: &'a str },
+    UserNotFound{ user_dni: u32 },
+    NotEnoughBalance{ balance: f64, balance_needed: f64 }
 }
 
 #[derive(Error)]
@@ -92,30 +113,57 @@ pub enum ErrorBuySell<'a> {
 
 impl<'a> XYZ<'a> {
     fn new(users: BTreeMap<u32, User<'a>>, blockchains: BTreeMap<&'a str, Blockchain<'a>>, quotes: HashMap<&'a str, Quote>) -> Self {
-        XYZ { users, blockchains, quotes }
+        Self { users, blockchains, quotes }
     }
 
     // ➢ Ingresar dinero: se recibe un monto en fiat de un usuario
     //  y se acredita al balance de fiat de dicho usuario. Además se crea una transacción del hecho.
-    fn deposit(&mut self, date: Date, user_dni: u32, fiat_amount: f64) -> Result<FiatTransaction, ErrorDeposit> {
+    fn fiat_deposit(&mut self, data: CommonTransactionData) -> Result<FiatTransaction, ErrorFiatDeposit> {
         // date errors are handled by FiatTransaction::new()
         match FiatTransaction::new(
-            date,
-            TransactionType::FiatDeposit,
-            fiat_amount,
-            user_dni
+            data,
+            TransactionType::FiatDeposit
         ) {
             Ok(transaction) => {
                 // deposit
-                if let Some(user) = self.users.get_mut(&user_dni) {
-                    user.fiat_balance += FiatBalance::from(fiat_amount);
+                if let Some(user) = self.users.get_mut(&data.user) {
+                    user.fiat_balance += Balance::from(data.amount);
                 } else {
-                    return Err(ErrorDeposit::UserNotFound{user_dni});
+                    return Err(ErrorFiatDeposit::UserNotFound{ user_dni: data.user });
                 }
 
                 Ok(transaction)
             },
-            Err(transaction_error) => Err(ErrorDeposit::FiatTransactionError(transaction_error))
+            Err(transaction_error) => Err(ErrorFiatDeposit::FiatTransactionError(transaction_error))
+        }
+    }
+
+    // ➢ Retirar fiat por determinado medio: dado un monto de fiat se le descuenta dicho monto del balance
+    // al usuario y se genera una transacción con la siguiente información:
+    // fecha, usuario, tipo: retiro fiat, monto y medio (puede ser MercadoPago o Transferencia Bancaria)
+    fn fiat_withdraw(&mut self, data: CommonTransactionData, mean: WithdrawalMean) -> Result<FiatTransaction, ErrorFiatWithdraw> {
+
+        match FiatTransaction::new(
+            data,
+            TransactionType::FiatWithdrawal{ mean }
+        ) {
+            Ok(transaction) => {
+                // does user exist/have enough balance?
+                if let Some(user) = self.users.get_mut(&data.user) {
+                    // not enough! abort.
+                    if user.fiat_balance < Balance(data.amount) { return Err( ErrorFiatWithdraw::NotEnoughBalance {
+                        balance_needed: data.amount, balance: user.fiat_balance.f64()
+                    }) }
+
+                    // enough! substract balance
+                    user.fiat_balance-= Balance(data.amount);
+                } else {
+                    return Err(ErrorFiatWithdraw::UserNotFound { user_dni: data.user })
+                };
+
+                Ok(transaction)
+            }
+            Err(error) => { Err(ErrorFiatWithdraw::FiatTransactionError( error )) }
         }
     }
 
@@ -125,22 +173,21 @@ impl<'a> XYZ<'a> {
     //  de la cripto y desacreditar en el balance de fiat.
     // Luego de ello se registra la transacción con los siguientes datos:
     //      fecha, usuario, criptomoneda, tipo: compra de cripto, monto de cripto y cotización.
-    fn buy_crypto(&mut self, date: Date, user_dni: u32, crypto_prefix: &'a str, fiat_amount: f64)
+    fn buy_crypto(&mut self, data: CommonTransactionData, crypto_prefix: &'a str)
                   -> Result<CryptoTransaction<'a>, ErrorBuySell> {
         // date errors are handled by CryptoTransaction::new()
 
         // check 1: invalid fiat amount
-        if fiat_amount < 0.0 {
+        if data.amount < 0.0 {
             return Err(ErrorBuySell::NegativeAmount)
         }
 
         match CryptoTransaction::new(
-            date,
+            data,
             TransactionType::CryptoBuy,
-            crypto_prefix,
-            fiat_amount,
-            user_dni
+            crypto_prefix
         ) {
+
             Ok(transaction) => {
                 // process buy
 
@@ -152,20 +199,20 @@ impl<'a> XYZ<'a> {
                     return Err(ErrorBuySell::CryptocurrencyNotQuoted{ crypto_prefix });
                 };
 
-                let transaction_crypto_amount = fiat_amount / currency_unitary_value; // .0 -> buy, .1 -> sell
+                let transaction_crypto_amount = data.amount / currency_unitary_value; // .0 -> buy, .1 -> sell
 
                 // check 3: user must exist
-                if let Some(user) = self.users.get_mut(&user_dni) {
+                if let Some(user) = self.users.get_mut(&data.user) {
                     // check 4: user must have enough fiat balance
-                    if user.fiat_balance < FiatBalance::from(fiat_amount) {
-                        return Err(ErrorBuySell::NotEnoughBalance{ balance: user.fiat_balance.into(), balance_needed: fiat_amount })
+                    if user.fiat_balance < Balance::from(data.amount) {
+                        return Err(ErrorBuySell::NotEnoughBalance{ balance: user.fiat_balance.f64(), balance_needed: data.amount })
                     }
 
                     // no error. execute operation
-                    user.fiat_balance-= FiatBalance::from(fiat_amount);
-                    *user.crypto_balance.0.entry(crypto_prefix).or_insert(0.0)+= transaction_crypto_amount;
+                    user.fiat_balance-= Balance::from(data.amount);
+                    *user.crypto_balance.entry(crypto_prefix).or_insert(Balance::from(0.0))+= Balance::from(transaction_crypto_amount);
                 } else {
-                    return Err(ErrorBuySell::UserNotFound{ user_dni });
+                    return Err(ErrorBuySell::UserNotFound{ user_dni: data.user });
                 };
 
                 Ok(transaction)
@@ -180,21 +227,19 @@ impl<'a> XYZ<'a> {
     //  y desacreditar en el balance de la criptomoneda.
     //  Luego de ello se registra la transacción con los siguientes datos:
     //  fecha, usuario, criptomoneda, tipo: venta de cripto, monto de cripto y cotización.
-    fn sell_crypto(&mut self, date: Date, user_dni: u32, crypto_prefix: &'a str, crypto_amount: f64) ->
+    fn sell_crypto(&mut self, data: CommonTransactionData, crypto_prefix: &'a str) ->
         Result<CryptoTransaction, ErrorBuySell> {
         // date errors are handled by CryptoTransaction::new()
 
         // check 1: amounts should be higher than 0
-        if crypto_amount <= 0.0 {
+        if data.amount <= 0.0 {
             return Err(ErrorBuySell::NegativeAmount)
         }
 
         match CryptoTransaction::new(
-            date,
+            data,
             TransactionType::CryptoSell,
             crypto_prefix,
-            crypto_amount,
-            user_dni
         ) {
             Ok(transaction) => {
                 // process sell
@@ -207,24 +252,24 @@ impl<'a> XYZ<'a> {
                     return Err(ErrorBuySell::CryptocurrencyNotQuoted{ crypto_prefix });
                 };
 
-                let transaction_fiat_value = currency_value.sell * crypto_amount;
+                let transaction_fiat_value = currency_value.sell * data.amount;
 
                 // check 3: user must exist
-                if let Some(user) = self.users.get_mut(&user_dni) {
+                if let Some(user) = self.users.get_mut(&data.user) {
                     // check 4: user must have enough $crypto_prefix balance
-                    if let Some(user_crypto_balance) = user.crypto_balance.0.get_mut(crypto_prefix) {
-                        if *user_crypto_balance < crypto_amount {
-                            return Err(ErrorBuySell::NotEnoughBalance { balance: *user_crypto_balance, balance_needed: crypto_amount })
+                    if let Some(user_crypto_balance) = user.crypto_balance.get_mut(crypto_prefix) {
+                        if *user_crypto_balance < Balance::from(data.amount) {
+                            return Err(ErrorBuySell::NotEnoughBalance { balance: user_crypto_balance.f64(), balance_needed: data.amount })
                         }
                         
                         // no error. execute operation
-                        *user_crypto_balance-= crypto_amount;
-                        user.fiat_balance+= FiatBalance::from(transaction_fiat_value);
+                        *user_crypto_balance-= Balance::from(data.amount);
+                        user.fiat_balance+= Balance::from(transaction_fiat_value);
                     } else {
-                        return Err(ErrorBuySell::NotEnoughBalance{ balance: 0.0, balance_needed: crypto_amount })
+                        return Err(ErrorBuySell::NotEnoughBalance{ balance: 0.0, balance_needed: data.amount })
                     }
                 } else {
-                    return Err(ErrorBuySell::UserNotFound{ user_dni });
+                    return Err(ErrorBuySell::UserNotFound{ user_dni: data.user });
                 };
 
                 Ok(transaction)
@@ -239,14 +284,84 @@ impl<'a> XYZ<'a> {
     // (esto hágalo retornando el nombre de la blockchain + un número random).
     // Luego se genera una transacción con los siguientes datos:
     // fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
+    fn withdraw_to_blockchain(&mut self, data: CommonTransactionData, blockchain: &'a str, crypto: &'a str) -> Result<BlockchainTransaction, ErrorBlockchainWithdraw> {
+        // does blockchain exist?
+        if !self.blockchains.contains_key(blockchain) {
+            return Err(ErrorBlockchainWithdraw::BlockchainNotFound { blockchain })
+        };
+
+        // does crypto have a quote?
+        let quote = if let Some(quote) = self.quotes.get(crypto) {
+            quote
+        } else {
+            return Err(ErrorBlockchainWithdraw::CryptoNotQuoted { crypto })
+        };
+
+        match BlockchainTransaction::new(
+            data,
+            TransactionType::BlockchainWithdrawal,
+            blockchain,
+            None,
+            crypto,
+            quote.clone() // quote should be cloned, as it changes over time. can't be copied due to containing f64
+        ) {
+            Ok(transaction) => {
+                // remove balance
+                // does user exist/have enough balance?
+                if let Some(user) = self.users.get_mut(&data.user) {
+                    if let Some(balance) = user.crypto_balance.get_mut(crypto) {
+                        *balance-= Balance::from(data.amount);
+                    } else {
+                        return Err(ErrorBlockchainWithdraw::NotEnoughBalance { balance: 0.0, balance_needed: data.amount } )
+                    };
+                } else {
+                    return Err(ErrorBlockchainWithdraw::UserNotFound { user_dni: data.user })
+                };
+                Ok(transaction)
+            }
+            Err(error) => { Err(ErrorBlockchainWithdraw::BlockchainTransactionError( error )) }
+        }
+    }
 
     // ➢ Recibir criptomoneda de blockchain: dado un monto de una cripto y una blockchain se le acredita
     // al balancede dicha cripto al usuario el monto. Luego se genera una transacción con los siguientes datos:
     // fecha, usuario, tipo: recepción cripto, blockchain, cripto, monto, cotización.
+    fn deposit_from_blockchain(&mut self, data: CommonTransactionData, blockchain: &'a str, crypto: &'a str) -> Result<BlockchainTransaction, ErrorBlockchainDeposit> {
+        // does blockchain exist?
+        if !self.blockchains.contains_key(blockchain) {
+            return Err(ErrorBlockchainDeposit::BlockchainNotFound { blockchain })
+        };
 
-    // ➢ Retirar fiat por determinado medio: dado un monto de fiat se le descuenta dicho monto del balance
-    // al usuario y se genera una transacción con la siguiente información:
-    // fecha, usuario, tipo: retiro fiat, monto y medio (puede ser MercadoPago o Transferencia Bancaria)
+        // does crypto have a quote?
+        let quote = if let Some(q) = self.quotes.get(crypto) {
+            q
+        } else {
+            return Err(ErrorBlockchainDeposit::CryptoNotQuoted { crypto })
+        };
+
+        match BlockchainTransaction::new(
+            data,
+            TransactionType::BlockchainDeposit,
+            blockchain,
+            None,
+            crypto,
+            quote.clone() // quote should be cloned, as it changes over time. can't be copied due to containing f64
+        ) {
+            Ok(transaction) => {
+                // add to balance
+                // does user exist/have enough balance?
+                if let Some(user) = self.users.get_mut(&data.user) {
+                    // enough! ready to withdraw
+                    user.fiat_balance+= Balance::from(data.amount);
+                } else {
+                    return Err(ErrorBlockchainDeposit::UserNotFound { user_dni: data.user })
+                };
+
+                Ok(transaction)
+            }
+            Err(error) => { Err(ErrorBlockchainDeposit::BlockchainTransactionError( error )) }
+        }
+    }
 
     // Nota:: Tanto para comprar. vender, retirar el usuario debe estar validado.
     // Se debe validar siempre que haya balance suficiente para realizar la operación

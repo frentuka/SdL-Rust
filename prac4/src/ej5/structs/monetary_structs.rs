@@ -4,10 +4,51 @@
 //     De cada blockchain se conoce el nombre, prefijo.
 
 use core::fmt;
-use std::fmt::{format, Formatter};
+use std::fmt::{Formatter};
 use ErrorProcMacro::Error;
 use crate::structs::date::Date;
-use crate::structs::monetary_structs::ErrorNewTransaction::NotAFiatOperation;
+
+pub struct BlockchainTransactionHash(String);
+impl<'a> BlockchainTransactionHash {
+    fn new(prefix: &'a str) -> BlockchainTransactionHash {
+        BlockchainTransactionHash(format!("{}-{}", prefix, rand::random::<u32>()))
+    }
+}
+
+pub struct BlockchainTransaction<'a> {
+    pub data: CommonTransactionData,
+    pub blockchain: &'a str,
+    pub hash: BlockchainTransactionHash,
+    pub crypto: &'a str,
+    pub quote: Quote
+}
+
+impl<'a> BlockchainTransaction<'a> {
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, blockchain: &'a str, hash: Option<BlockchainTransactionHash>, crypto: &'a str, quote: Quote) -> Result<Self, ErrorNewTransaction> {
+        // invalid date
+        if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
+
+        // invalid amount
+        if data.amount < 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount { amount: data.amount }) }
+
+        // invalid transaction type
+        if transaction_type != TransactionType::BlockchainWithdrawal
+        && transaction_type != TransactionType::BlockchainDeposit
+            { return Err(ErrorNewTransaction::InvalidTransactionType { transaction_type }) }
+
+        // unwrap or create
+        let hash = if let Some(val) = hash { val }
+                                         else { BlockchainTransactionHash::new(blockchain) };
+
+        Ok(Self {
+            data,
+            blockchain,
+            hash,
+            crypto,
+            quote
+        })
+    }
+}
 
 pub struct Blockchain<'a> {
     pub name: &'a str,
@@ -26,12 +67,16 @@ impl<'a> Blockchain<'a> {
     // Luego se genera una transacción con los siguientes datos:
     // fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
 
-    fn withdraw() -> Result<&'a str, ErrorNewTransaction> {
-        
-        
-        
-        
-        Err(ErrorNewTransaction::InvalidDate)
+    fn withdraw(&self, data: CommonTransactionData, transaction_type: TransactionType, crypto: &'a str, quote: Quote) -> Result<BlockchainTransaction, ErrorNewTransaction> {
+        // all checks are made by BlockchainTransaction::new()
+        BlockchainTransaction::new(
+            data,
+            transaction_type,
+            self.name,
+            None, // hash
+            crypto,
+            quote
+        )
     }
 }
 
@@ -62,10 +107,24 @@ impl<'a> Cryptocurrency<'a> {
 // Quote
 // I could use a tuple instead of a whole struct,
 // but I want to enforce compile-time names for values
-// as it's not intuitive that .0 is BUY value and .1 is SELL value
+// as it's not intuitive that .0 is the BUY value and .1 the SELL value
+// quote must be copied,
+#[derive(Clone)]
 pub struct Quote {
     pub buy: f64,
     pub sell: f64
+}
+
+// CommonTransactionData
+// It's only purpose is to prevent having too many arguments.
+// It's only supposed to have data which all transactions need.
+// TransctionType could also be set here, but that would imply that user must set the transaction type
+// and I prefer transaction types to be hard-coded.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CommonTransactionData {
+    pub date: Date,
+    pub user: u32,
+    pub amount: f64,
 }
 
 // ➢ Ingresar dinero: se recibe un monto en fiat de un usuario
@@ -76,16 +135,17 @@ pub struct Quote {
 pub enum ErrorNewTransaction {
     InvalidDate,
     InvalidInputAmount{ amount: f64 },
-    NotAFiatOperation{ operation: TransactionType },
-    BlockchainNotDeclared
+    InvalidTransactionType { transaction_type: TransactionType },
+    BlockchainNotDeclared,
+    FiatWithdrawalNeedsMean
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum WithdrawalMean {
     BankTansfer, MercadoPago
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum TransactionType {
     FiatDeposit,
     FiatWithdrawal { mean: WithdrawalMean },
@@ -109,54 +169,58 @@ impl fmt::Display for TransactionType {
 }
 
 pub struct FiatTransaction {
-    pub date: Date,
-    pub transaction_type: TransactionType,
-    pub amount: f64,
-    pub user: u32
+    pub data: CommonTransactionData,
+    pub transaction_type: TransactionType
 }
 
-// all FIAT transfers will all be treated as Argentine Peso transfers
+// all FIAT transfers will be treated as Argentine Peso transfers
 
 impl FiatTransaction {
-    pub fn new(date: Date, transaction_type: TransactionType, amount: f64, user: u32) -> Result<Self, ErrorNewTransaction> {
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType) -> Result<Self, ErrorNewTransaction> {
         match transaction_type {
-            TransactionType::FiatDeposit => {},
-            TransactionType::FiatWithdrawal { .. } => {},
-            operation => return Err(NotAFiatOperation{ operation })
+            TransactionType::FiatDeposit => (),
+            TransactionType::FiatWithdrawal { .. } => (),
+            _ => return Err(ErrorNewTransaction::InvalidTransactionType { transaction_type })
         }
-        if !date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
-        if amount <= 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount{ amount }) }
+        
+        if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
+        if data.amount <= 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount{ amount: data.amount }) }
 
-        // user_from, user_to verifications must be done service-side
+        // user verifications must be done service-side
 
         Ok(FiatTransaction {
-            date, transaction_type, amount, user
+            data, transaction_type
         })
     }
 }
 
-
+//
+// Crypto Transaction
+//
 
 pub struct CryptoTransaction<'a> {
-    pub date: Date,
-    pub transaction_type: TransactionType,
+    pub data: CommonTransactionData,
     pub currency: &'a str,
-    pub amount: f64,
-    pub user: u32
 }
 
 // all FIAT transfers will all be treated as Argentine Peso transfers
 
 impl<'a> CryptoTransaction<'a> {
-    pub fn new(date: Date, transaction_type: TransactionType, currency: &'a str, amount: f64, user: u32) -> Result<Self, ErrorNewTransaction> {
-        if !date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
-        if amount < 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount{ amount }) }
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, currency: &'a str) -> Result<Self, ErrorNewTransaction> {
+        if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
+        if data.amount < 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount{ amount: data.amount }) }
 
+        match transaction_type {
+            TransactionType::CryptoBuy => (),
+            TransactionType::CryptoSell => (),
+            _ => { return Err(ErrorNewTransaction::InvalidTransactionType { transaction_type }) }
+        }
+        
         // blockchain, currency, user_from, user_to verifications must be done service-side
 
 
         Ok(CryptoTransaction {
-            date, transaction_type, currency, amount, user
+            data, currency
         })
     }
 }
