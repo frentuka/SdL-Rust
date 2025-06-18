@@ -68,6 +68,7 @@ use std::ops::{AddAssign, SubAssign};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub struct Balance(pub f64);
+
 impl Balance {
     pub fn new(balance: f64) -> Self {
         Balance(balance)
