@@ -1,5 +1,12 @@
 use std::collections::VecDeque;
+use std::{fmt, fs, io};
+use std::fmt::Formatter;
+use std::fs::File;
+use std::io::Read;
 use crate::structs::atencion::{Atencion, Mascota};
+use crate::structs::fecha::Fecha;
+
+const BASE_FOLDER: &str = "R:/appcrap/RustRover/SdL-Rust/prac5/_p5e3/res/";
 
 // De la veterinaria se conoce
 // - nombre
@@ -9,41 +16,172 @@ use crate::structs::atencion::{Atencion, Mascota};
 pub struct Veterinaria<'a> {
     pub nombre: &'a str,
     pub direccion: &'a str,
-    pub id: i32,
-    pub cola: VecDeque<Mascota<'a>>,
-    pub atenciones: Vec<Atencion<'a>>
+    pub id: u64,
+    pub cola: VecDeque<Mascota>,
+    pub atenciones: Vec<Atencion>
 }
+
+//
+// results ArchivoAtenciones
+//
+
+#[derive(Debug)]
+pub enum ResultArchivoAtenciones {
+    Read{ atenciones: Vec<Atencion> },
+    Written{ json: String },
+    IOError(io::Error),
+    SerializeError(serde_json::error::Error),
+    DeserializeError(serde_json::error::Error)
+}
+
+impl<'a> fmt::Display for ResultArchivoAtenciones {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ResultArchivoAtenciones::Read { atenciones } => {
+                write!(f, "Archivo leído con éxito. Contiene {} atenciones.", atenciones.len())
+            }
+            ResultArchivoAtenciones::Written { json } => {
+                write!(f, "Archivo escrito con éxito. Contenido JSON: {}", json)
+            }
+            ResultArchivoAtenciones::IOError(error) => {
+                write!(f, "Error de E/S: {}", error)
+            }
+            ResultArchivoAtenciones::SerializeError(error) => {
+                write!(f, "Error al serializar: {}", error)
+            }
+            ResultArchivoAtenciones::DeserializeError(error) => {
+                write!(f, "Error al deserializar: {}", error)
+            }
+        }
+    }
+}
+
+
+//
+// errores veterinaria
+//
+
+#[derive(Debug)]
+pub enum ErrorNewVeterinaria {
+    VecColaCapacidad0,
+    VecAtencionesCapacidad0,
+    ArchivoAtenciones(ResultArchivoAtenciones)
+}
+
+#[derive(Debug)]
+pub enum ResultAgregarMascota {
+    Exito,
+    ColaLlena{ capacity: usize },
+    ArchivoAtenciones(ResultArchivoAtenciones)
+}
+
+#[derive(Debug)]
+pub enum ResultRemoverMascota<'a> {
+    Exito (Mascota),
+    ColaVacia { capacity: usize },
+    MascotaInexistente { nombre_mascota: &'a str, nombre_dueno: &'a str },
+    ArchivoAtenciones(ResultArchivoAtenciones),
+}
+
+#[derive(Debug)]
+pub enum ResultAgregarAtencion {
+    Exito,
+    VectorLleno { capacity: usize},
+    ArchivoAtenciones(ResultArchivoAtenciones)
+}
+
+#[derive(Debug)]
+pub enum ResultRemoverAtencion<'a> {
+    Exito(Atencion),
+    VectorVacio { capacity: usize },
+    AtencionInexistente { nombre_mascota: &'a str, nombre_dueno: &'a str, diagnostico: &'a str },
+    ArchivoAtenciones(ResultArchivoAtenciones)
+}
+
+
+//
+// impl Veterinaria
+//
 
 impl<'a> Veterinaria<'a> {
 
     // ➔ crear una veterinaria.
-    pub fn new(nombre: &'a str, direccion: &'a str, id: i32, cola: Option<VecDeque<Mascota<'a>>>, atenciones: Option<Vec<Atencion<'a>>>) -> Self {
-        Self { nombre, direccion, id, cola: cola.unwrap_or_default(), atenciones: atenciones.unwrap_or_default() }
+    pub fn new(
+        nombre: &'a str,
+        direccion: &'a str,
+        id: u64,
+        cola: Option<VecDeque<Mascota>>,
+        atenciones: Option<Vec<Atencion>>
+    ) -> Result<Self, ErrorNewVeterinaria> {
+        let cola = if let Some(cola) = cola {
+            if cola.capacity() == 0 { return Err(ErrorNewVeterinaria::VecColaCapacidad0) }
+            cola
+        } else { VecDeque::new() };
+
+        // si atenciones some(val) -> crear un archivo que contenga val
+        // si atenciones none -> intentar abrir el archivo y colocar su información en self.atenciones
+
+         let atenciones = if let Some(atenciones) = atenciones {
+             if atenciones.capacity() == 0 { return Err(ErrorNewVeterinaria::VecAtencionesCapacidad0)  }
+             sobreescribir_archivo_atenciones(nombre, &atenciones);
+             atenciones
+         } else {
+             // leer o crear
+             match leer_archivo_atenciones(nombre) {
+                 ResultArchivoAtenciones::Read { atenciones } => { atenciones },
+                 error => return Err(ErrorNewVeterinaria::ArchivoAtenciones(error))
+             }
+         };
+
+        Ok(
+            Self { nombre, direccion, id, cola, atenciones }
+        )
     }
 
     // ➔ agregar una nueva mascota a la cola de atención de la veterinaria.
-    pub fn agregar_mascota(&mut self, mascota: Mascota<'a>) {
+    pub fn agregar_mascota(&mut self, mascota: Mascota) -> ResultAgregarMascota {
+        if self.cola.len() == self.cola.capacity() { return ResultAgregarMascota::ColaLlena { capacity: self.cola.capacity() } }
         self.cola.push_back(mascota);
+        ResultAgregarMascota::Exito
     }
 
     // ➔ agregar una nueva mascota a la cola de atención pero que sea la siguiente en atender porque tiene la máxima prioridad.
-    pub fn agregar_mascota_prioridad(&mut self, mascota: Mascota<'a>) {
+    pub fn agregar_mascota_prioridad(&mut self, mascota: Mascota) -> ResultAgregarMascota {
+        if self.cola.len() == self.cola.capacity() { return ResultAgregarMascota::ColaLlena { capacity: self.cola.capacity() } }
         self.cola.push_front(mascota);
+        match sobreescribir_archivo_atenciones(self.nombre, &self.atenciones) {
+            ResultArchivoAtenciones::Written { json: _ } => ResultAgregarMascota::Exito,
+            x => ResultAgregarMascota::ArchivoAtenciones(x)
+        }
     }
 
     // ➔ atender la próxima mascota de la cola.
-    pub fn atender_proxima_mascota(&mut self) -> Option<Mascota> {
-        self.cola.pop_front()
+    pub fn atender_proxima_mascota(&mut self) -> ResultRemoverMascota {
+        if let Some(mascota) = self.cola.pop_front() { ResultRemoverMascota::Exito(mascota) }
+        else { ResultRemoverMascota::ColaVacia { capacity: self.cola.capacity() } }
     }
 
     // ➔ eliminar una mascota específica de la cola de atención dado que se retira.
-    pub fn eliminar_mascota(&mut self, mascota: Mascota<'a>) {
-        self.cola.retain(|m| *m != mascota);
+    pub fn eliminar_mascota(&mut self, nombre_mascota: &'a str, nombre_dueno: &'a str) -> ResultRemoverMascota {
+        let index = if let Some(index) = self.cola.iter().position(|m| m.nombre == nombre_mascota && m.dueno.nombre == nombre_dueno ) { index }
+        else { return ResultRemoverMascota::MascotaInexistente { nombre_mascota, nombre_dueno } };
+
+        if let Some(mascota) = self.cola.remove(index) {
+            ResultRemoverMascota::Exito(mascota)
+        } else {
+            ResultRemoverMascota::MascotaInexistente { nombre_mascota, nombre_dueno }
+        }
     }
 
     // ➔ registrar una atención.
-    pub fn registrar_atencion(&mut self, atencion: Atencion<'a>) {
+    pub fn registrar_atencion(&mut self, atencion: Atencion) -> ResultAgregarAtencion {
+        if self.atenciones.len() == self.atenciones.capacity() { return ResultAgregarAtencion::VectorLleno{ capacity: self.atenciones.capacity() } }
         self.atenciones.push(atencion);
+
+        match sobreescribir_archivo_atenciones(&self.nombre, &self.atenciones) {
+            ResultArchivoAtenciones::Written { .. } => { ResultAgregarAtencion::Exito },
+            x => ResultAgregarAtencion::ArchivoAtenciones(x)
+        }
     }
 
     /// Searches for an Atencion by Mascota's name and Dueno's details.
@@ -56,12 +194,7 @@ impl<'a> Veterinaria<'a> {
     /// # Returns
     /// * `Some(&Atencion)` - If an Atencion is found.
     /// * `None` - If no match is found.
-    pub fn buscar_atencion(
-        &self,
-        mascota_nombre: String,
-        dueno_nombre: String,
-        telefono: u64,
-    ) -> Option<&Atencion> {
+    pub fn buscar_atencion(&self, mascota_nombre: String, dueno_nombre: String, telefono: u64, ) -> Option<&Atencion> {
         self.atenciones.iter().find(|atencion| {
             atencion.mascota.nombre == mascota_nombre
                 && atencion.mascota.dueno.nombre == dueno_nombre
@@ -69,27 +202,21 @@ impl<'a> Veterinaria<'a> {
         })
     }
 
-    /// Searches for an Atencion by Mascota's name and Dueno's details.
-    ///
-    /// # Arguments
-    /// * `mascota_nombre` - The name of the Mascota.
-    /// * `dueno_nombre` - The name of the Dueno.
-    /// * `telefono` - The Dueno's phone number.
-    ///
-    /// # Returns
-    /// * `Some(&mut Atencion)` - If an Atencion is found.
-    /// * `None` - If no match is found.
-    pub fn buscar_atencion_mut(
-        &mut self,
-        mascota_nombre: String,
-        dueno_nombre: String,
-        telefono: u64,
-    ) -> Option<&mut Atencion<'a>> {
-        self.atenciones.iter_mut().find(|atencion| {
+    // pub fn buscar_atencion_mut(&mut self, mascota_nombre: String, dueno_nombre: String, telefono: u64, ) -> Option<&mut Atencion> {
+    //     self.atenciones.iter_mut().find(|atencion| {
+    //         atencion.mascota.nombre == mascota_nombre
+    //             && atencion.mascota.dueno.nombre == dueno_nombre
+    //             && atencion.mascota.dueno.telefono == telefono
+    //     }) // cómo hago para editar el archivo cuando se haya actualizado un &mut Atencion?
+    //         // cómo hago para saber cuándo se edita con un préstamo mutable de un elemento?
+    //          // cómo hago para saber cuándo finaliza el préstamo mutable?
+    // }
+
+    pub fn buscar_atencion_mut(&mut self, mascota_nombre: String, dueno_nombre: String, telefono: u64) -> Option<& mut Atencion> {
+        self.atenciones.iter_mut().find(|atencion|
             atencion.mascota.nombre == mascota_nombre
                 && atencion.mascota.dueno.nombre == dueno_nombre
-                && atencion.mascota.dueno.telefono == telefono
-        })
+                && atencion.mascota.dueno.telefono == telefono)
     }
 
     /// Deletes an Atencion record from the Veterinaria records
@@ -103,15 +230,80 @@ impl<'a> Veterinaria<'a> {
     ///
     /// # Notes
     /// Requires `PartialEq` on Atencion for comparison
-    pub fn eliminar_atencion(
-        &mut self,
-        atencion: &Atencion
-    ) -> Option<Atencion> {
-        if let Some(index) = self.atenciones.iter().position(|a| a == atencion) {
-            return Some(self.atenciones.remove(index));
+    pub fn eliminar_atencion (&mut self, nombre_mascota: &'a str, nombre_dueno: &'a str, diagnostico: &'a str) -> ResultRemoverAtencion {
+        if self.atenciones.len() == 0 {
+            return ResultRemoverAtencion::VectorVacio { capacity: self.atenciones.capacity() }
         }
-        None
+
+        if let Some(index) = self.atenciones.iter().position( |a|
+                a.mascota.nombre == nombre_mascota
+             && a.mascota.dueno.nombre == nombre_dueno
+             && a.diagnostico == diagnostico) {
+
+            ResultRemoverAtencion::Exito(self.atenciones.remove(index))
+        } else {
+            ResultRemoverAtencion::AtencionInexistente { nombre_mascota, nombre_dueno, diagnostico }
+        }
     }
+}
+
+//
+//  atenciones file
+//
+
+fn archivo_atenciones_filepath(nombre_vet: &str) -> String {
+    format!("{}veterinaria_{}_atenciones.json", BASE_FOLDER, nombre_vet)
+}
+
+//
+
+fn sobreescribir_archivo_atenciones(nombre_vet: &str, atenciones: &Vec<Atencion>) -> ResultArchivoAtenciones {
+    // crear y/o escribir
+    // presupongo que la imposibilidad de persistir como archivo es un error semi-catastrófico
+    // semi-catastrófico == no runtime panic, pero se aborta la creación de la veterinaria
+    let json_data = match serde_json::to_string_pretty(atenciones) {
+        Ok(data) => { data }
+        Err(error) => { return ResultArchivoAtenciones::SerializeError(error) }
+    };
+
+    // escribir
+    match fs::write(archivo_atenciones_filepath(nombre_vet), json_data.clone()) {
+        Ok(_) => {  },
+        Err(error) => {
+            return ResultArchivoAtenciones::IOError(error)
+        }
+    };
+
+    // éxito
+    ResultArchivoAtenciones::Written { json: json_data }
+}
+
+//
+
+fn leer_archivo_atenciones(nombre_vet: &str) -> ResultArchivoAtenciones {
+    // leer
+    let mut file = match File::open(archivo_atenciones_filepath(nombre_vet)) {
+        Ok(file) => { file }
+        Err(error) => { return ResultArchivoAtenciones::IOError(error) }
+    };
+
+    let mut contents = String::new();
+    match file.read_to_string(&mut contents) {
+        Ok(_) => {},
+        Err(error) => return ResultArchivoAtenciones::IOError(error)
+    };
+
+    let json_value: serde_json::Value = match serde_json::from_str(&contents) {
+        Ok(value) => value,
+        Err(error) => return ResultArchivoAtenciones::DeserializeError(error),
+    };
+
+    let atenciones: Vec<Atencion> = match serde_json::from_value(json_value) {
+        Ok(atenciones) => atenciones,
+        Err(error) => return ResultArchivoAtenciones::DeserializeError(error),
+    };
+
+    ResultArchivoAtenciones::Read { atenciones }
 }
 
 #[cfg(test)]
@@ -120,39 +312,39 @@ mod tests {
     use crate::structs::atencion::{Animal, Dueno, Fecha};
     use super::*;
 
-    fn veterinaria_de_pepe<'a>() -> Veterinaria<'a> {
+    fn veterinaria_de_pepe<'a>(capacidad: usize) -> Veterinaria<'a> {
         // Crear dueños
         let dueno1 = Dueno {
-            nombre: "Juan Pérez",
-            direccion: "Calle 123",
+            nombre: "Juan Pérez".to_string(),
+            direccion: "Calle 123".to_string(),
             telefono: 1234567890,
         };
         let dueno2 = Dueno {
-            nombre: "María Gómez",
-            direccion: "Avenida 456",
+            nombre: "María Gómez".to_string(),
+            direccion: "Avenida 456".to_string(),
             telefono: 9876543210,
         };
         let dueno3 = Dueno {
-            nombre: "Carlos López",
-            direccion: "Carrera 789",
+            nombre: "Carlos López".to_string(),
+            direccion: "Carrera 789".to_string(),
             telefono: 5555555555,
         };
 
         // Crear mascotas para la cola
         let mascota1 = Mascota {
-            nombre: "Max",
+            nombre: "Max".to_string(),
             edad: 3,
             animal: Animal::Perro,
             dueno: dueno1,
         };
         let mascota2 = Mascota {
-            nombre: "Luna",
+            nombre: "Luna".to_string(),
             edad: 2,
             animal: Animal::Gato,
             dueno: dueno2,
         };
         let mascota3 = Mascota {
-            nombre: "Tormenta",
+            nombre: "Tormenta".to_string(),
             edad: 5,
             animal: Animal::Caballo,
             dueno: dueno3,
@@ -166,30 +358,38 @@ mod tests {
         // Crear atenciones
         let atencion1 = Atencion {
             mascota: mascota1.clone(),
-            diagnostico: "Resfriado leve",
-            tratamiento: "Antibióticos",
+            diagnostico: "Resfriado leve".to_string(),
+            tratamiento: "Antibióticos".to_string(),
             proxima_visita: fecha1,
         };
         let atencion2 = Atencion {
             mascota: mascota2.clone(),
-            diagnostico: "Infección ocular",
-            tratamiento: "Gotas",
+            diagnostico: "Infección ocular".to_string(),
+            tratamiento: "Gotas".to_string(),
             proxima_visita: fecha2,
         };
         let atencion3 = Atencion {
             mascota: mascota3.clone(),
-            diagnostico: "Cojeo",
-            tratamiento: "Reposo",
+            diagnostico: "Cojeo".to_string(),
+            tratamiento: "Reposo".to_string(),
             proxima_visita: fecha3,
         };
 
+        let mut vec_cola: VecDeque<Mascota> = VecDeque::with_capacity(capacidad);
+        vec_cola.push_back(mascota1);
+        vec_cola.push_back(mascota2);
+        vec_cola.push_back(mascota3);
+
         // Crear la veterinaria con cola y atenciones
-        Veterinaria {
-            nombre: "Pepe's Pet Shop",
-            direccion: "Calle Principal 100",
-            id: 1,
-            cola: VecDeque::from([mascota1, mascota2, mascota3]),
-            atenciones: vec![atencion1, atencion2, atencion3],
+        match Veterinaria::new (
+            "Pepe's Pet Shop",
+            "Calle Principal 100",
+             1,
+            Some(vec_cola),
+            Some(vec![atencion1, atencion2, atencion3]),
+        ) {
+            Ok(vet) => { vet }
+            Err(err) => { panic!("error: {:?}", err) }
         }
     }
 
@@ -227,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_atencion() {
-        let mut veterinaria = veterinaria_de_pepe();
+        let mut veterinaria = veterinaria_de_pepe(10);
 
         // Verificar visualmente el contenido
         println!("Veterinaria: {}", veterinaria.nombre);
@@ -240,40 +440,71 @@ mod tests {
         assert!(atencion.is_some(), "La atención no puede no existir");
         let atencion = atencion.unwrap();
 
-        atencion.modificar_diagnostico_atencion("jijodebu en los jijolines jijox");
+        atencion.modificar_diagnostico_atencion("jijodebu en los jijolines jijox".to_string());
 
         println!("Atenciones: {:?}", veterinaria.atenciones);
     }
 
     #[test]
     fn test_agregar_eliminar() {
-        let mut veterinaria = veterinaria_de_pepe();
+        let mut veterinaria = veterinaria_de_pepe(10);
 
         let dueno1 = Dueno {
-            nombre: "Enrique Ibañez",
-            direccion: "Calle 437",
+            nombre: "Enrique Ibañez".to_string(),
+            direccion: "Calle 437".to_string(),
             telefono: 1234567890,
         };
 
         let mascota1 = Mascota {
-            nombre: "Rodolfo",
-            edad: 7,
+            nombre: "Rodolfoasdasda".to_string(),
+            edad: 72,
             animal: Animal::Caballo,
             dueno: dueno1,
         };
 
-        veterinaria.agregar_mascota(mascota1.clone());
+        match veterinaria.agregar_mascota(mascota1.clone()) {
+            ResultAgregarMascota::Exito => {},
+            ResultAgregarMascota::ColaLlena { capacity } => { panic!("No deberia estar llena. Capacidad: {}", capacity) },
+            ResultAgregarMascota::ArchivoAtenciones(aa) => { panic!("e? {:?}", aa) }
+        }
 
         println!("{:?}", veterinaria.cola);
         assert_eq!(veterinaria.cola.len(), 4, "Deberían haber 4 mascotas en total.");
 
         veterinaria.agregar_mascota_prioridad(mascota1.clone());
         let prox_mascota = veterinaria.atender_proxima_mascota();
-        assert!(prox_mascota.is_some(), "Debe existir una próxima mascota");
-        assert_eq!(prox_mascota.unwrap(), mascota1, "La primer mascota en la fila debería ser la misma mascota que se agregó con prioridad");
 
-        println!("{:?}", veterinaria.eliminar_mascota(mascota1));
+        let mascota = match prox_mascota {
+            ResultRemoverMascota::Exito(mascota) => { mascota },
+            _ => panic!("deberia existir")
+        };
+
+        assert_eq!(mascota, mascota1, "La primer mascota en la fila debería ser la misma mascota que se agregó con prioridad");
+
+        println!("{:?}", veterinaria.eliminar_mascota(mascota1.nombre.as_str(), mascota1.dueno.nombre.as_str()));
 
         assert_eq!(veterinaria.cola.len(), 3, "La lista de mascotas debería haber vuelto a su estado original (3 items).");
+    }
+
+    #[test]
+    fn test_json() {
+        veterinaria_de_pepe(10); // creará el .json
+
+        match Veterinaria::new( // cargará el .json
+            "Pepe's Pet Shop",
+            "asd",
+            1,
+            None,
+            None
+        ) {
+            Ok(vet) => {
+                assert_eq!(vet.atenciones.len(), 3, "deberían ser 3 según el archivo");
+
+                for atencion in vet.atenciones {
+                    println!("{} ({}): {}", atencion.mascota.nombre, atencion.mascota.edad, atencion.diagnostico)
+                }
+            }
+            Err(err) => { panic!("error new veterinaria: {:?}", err) }
+        }
     }
 }

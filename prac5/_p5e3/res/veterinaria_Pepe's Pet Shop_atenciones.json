@@ -1,0 +1,59 @@
+[
+  {
+    "mascota": {
+      "nombre": "Max",
+      "edad": 3,
+      "animal": "Perro",
+      "dueno": {
+        "nombre": "Juan Pérez",
+        "direccion": "Calle 123",
+        "telefono": 1234567890
+      }
+    },
+    "diagnostico": "Resfriado leve",
+    "tratamiento": "Antibióticos",
+    "proxima_visita": {
+      "dia": 15,
+      "mes": 10,
+      "ano": 2023
+    }
+  },
+  {
+    "mascota": {
+      "nombre": "Luna",
+      "edad": 2,
+      "animal": "Gato",
+      "dueno": {
+        "nombre": "María Gómez",
+        "direccion": "Avenida 456",
+        "telefono": 9876543210
+      }
+    },
+    "diagnostico": "Infección ocular",
+    "tratamiento": "Gotas",
+    "proxima_visita": {
+      "dia": 20,
+      "mes": 10,
+      "ano": 2023
+    }
+  },
+  {
+    "mascota": {
+      "nombre": "Tormenta OwO!!",
+      "edad": 5,
+      "animal": "Caballo",
+      "dueno": {
+        "nombre": "Carlos López",
+        "direccion": "Carrera 789",
+        "telefono": 5555555555
+      }
+    },
+    "diagnostico": "Cojeo",
+    "tratamiento": "Reposo",
+    "proxima_visita": {
+      "dia": 25,
+      "mes": 10,
+      "ano": 2023
+    }
+  }
+]
