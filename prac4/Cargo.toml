@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ErrorProcMacro = { path = "R:/appcrap/RustRover/SdL-Rust/custom_crates/ErrorProcMacro" }
+error_proc_macro = "0.1.0"
 rand = "0.9.1"
 
 [[bin]]

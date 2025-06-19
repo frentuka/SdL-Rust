@@ -20,7 +20,8 @@
       <sourceFolder url="file://$MODULE_DIR$/prac3/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/prac4/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/custom_crates/ErrorProcMacro/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/prac5/p5e1/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac5/_p5e1/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prac5/_p5e2/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac1_/ej1/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac1_/ej10/target" />
@@ -39,7 +40,8 @@
       <excludeFolder url="file://$MODULE_DIR$/prac3/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac4/target" />
       <excludeFolder url="file://$MODULE_DIR$/custom_crates/ErrorProcMacro/target" />
-      <excludeFolder url="file://$MODULE_DIR$/prac5/p5e1/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac5/_p5e1/target" />
+      <excludeFolder url="file://$MODULE_DIR$/prac5/_p5e2/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

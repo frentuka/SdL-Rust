@@ -5,7 +5,7 @@
 
 use core::fmt;
 use std::fmt::{Formatter};
-use ErrorProcMacro::Error;
+use error_proc_macro::Error;
 use crate::structs::date::Date;
 
 pub struct BlockchainTransactionHash(String);

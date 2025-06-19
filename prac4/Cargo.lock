@@ -3,14 +3,6 @@
 version = 4
 
 [[package]]
-name = "ErrorProcMacro"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
 name = "bitflags"
 version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -21,6 +13,16 @@ name = "cfg-if"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
+
+[[package]]
+name = "error_proc_macro"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69ae9f7d3c007448c17f5b664e908fb285ad21be7658655c4e8aa833950fda1f"
+dependencies = [
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "getrandom"
@@ -53,7 +55,7 @@ dependencies = [
 name = "prac4"
 version = "0.1.0"
 dependencies = [
- "ErrorProcMacro",
+ "error_proc_macro",
  "rand",
 ]
 

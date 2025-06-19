@@ -1,5 +1,5 @@
+use error_proc_macro::Error;
 use serde::{Serialize, Serializer};
-use ErrorProcMacro::Error;
 
 #[derive(Serialize, PartialEq, Clone)]
 pub enum Color {
@@ -26,7 +26,7 @@ impl<'a> Auto<'a> {
     pub fn new(marca: &'a str, modelo: &'a str, ano: u16, precio: f64, color: Color) -> Result<Self, ErrorNewAuto> {
         if ano < 1886 { return Err(ErrorNewAuto::InvalidYear{ year: ano }) }
         if precio < 0.0 || precio.is_nan() || !precio.is_finite() { return Err(ErrorNewAuto::InvalidPrice{ price: precio }) }
-
+        
         Ok(Self { marca, modelo, ano, precio, color })
     }
 

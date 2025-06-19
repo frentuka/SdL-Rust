@@ -1,5 +1,5 @@
 use std::fs;
-use ErrorProcMacro::Error;
+use error_proc_macro::Error;
 use crate::structs::auto::Auto;
 
 pub struct Concesionario<'a> {
@@ -96,10 +96,6 @@ impl<'a> Concesionario<'a> {
 
         None
     }
-    
-    pub fn test_closure(&self, x: fn(i32)) {
-        
-    }
 }
 
 /*
@@ -123,8 +119,6 @@ mod tests {
     #[test]
     fn test_agregar() {
         let mut c = concesionario(1);
-        
-        c.test_closure(|x| () );
 
         let auto1 = Auto { marca: "Nissan", modelo: "March 1.6", ano: 2012, precio: 10.0, color: Color::Negro };
         let auto2 = Auto { marca: "Nissan2", modelo: "March 1.62", ano: 20122, precio: 10.2, color: Color::Azul };

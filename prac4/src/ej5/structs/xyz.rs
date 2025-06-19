@@ -56,7 +56,7 @@ Además la empresa desea saber lo siguiente en base a sus operaciones:
 ➢ Saber cual es la criptomoneda que más volumen de compras tiene
 
 */
-use ErrorProcMacro::Error;
+use error_proc_macro::Error;
 use std::collections::{BTreeMap, HashMap};
 use crate::structs::user::{Balance, User};
 use crate::structs::monetary_structs::{Blockchain, BlockchainTransaction, CommonTransactionData, CryptoTransaction, ErrorNewTransaction, FiatTransaction, Quote, TransactionType, WithdrawalMean};
