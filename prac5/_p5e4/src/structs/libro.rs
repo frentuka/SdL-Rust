@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 /// De cada libro se conoce:
 ///     el título,
 ///     autor,
 ///     número de páginas,
 ///     género (novela, infantil, técnico, otros).
-#[derive(Default, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
 pub(crate) struct Libro {
     pub isbn: u64,
     pub titulo: String,
@@ -13,7 +15,7 @@ pub(crate) struct Libro {
     pub stock: u32
 }
 
-#[derive(Default, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
 pub enum Genero {
     Novela, Infantil, Tecnico, #[default] Otros
 }

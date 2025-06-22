@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Del cliente se conoce:
 ///     el nombre,
 ///     teléfono
 ///     y dirección de correo electrónico.
-#[derive(Default, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
 pub struct Cliente {
     pub id: u32,
     pub nombre: String,

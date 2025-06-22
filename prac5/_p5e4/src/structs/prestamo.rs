@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use crate::structs::fecha::Fecha;
 
 /// Para registrar un préstamo se requiere:
@@ -6,7 +7,7 @@ use crate::structs::fecha::Fecha;
 ///     la fecha de vencimiento del préstamo,
 ///     la fecha de devolución
 ///     y el estado (devuelto o en préstamo)
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, PartialOrd, Debug)]
 pub struct Prestamo {
     pub isbn: u64, // isbn
     pub cliente: u32, // id
@@ -15,7 +16,7 @@ pub struct Prestamo {
     pub estado: EstadoPrestamo
 }
 
-#[derive(Default, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
 pub enum EstadoPrestamo {
     Devuelto, #[default] Prestando
 }

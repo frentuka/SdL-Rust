@@ -1,47 +1,55 @@
 use std::collections::BTreeMap;
+use error_proc_macro::Error;
+use serde::{Deserialize, Serialize};
+use crate::structs::biblioteca_fm::BibliotecaFileManagement;
 use crate::structs::cliente::Cliente;
 use crate::structs::fecha::Fecha;
 use crate::structs::prestamo::{EstadoPrestamo, Prestamo};
 use super::libro::Libro;
 
+const MAX_PRESTAMOS_ACTIVOS: usize = 5;
+
 /// # Biblioteca
 ///
 /// `nombre: String` - Nombre de la biblioteca<br>
 /// `direccion: String` - Dirección física de la biblioteca<br>
-/// `libros: BTreeMap<u64, Libro>` - Libros de la biblioteca<br>
+/// `libros: BTreeMap<u64, Libro>` - Libros de la biblioteca.<br>
 /// `prestamos: BTreeMap<u32, (Cliente, Vec<Prestamo>)>` - <b> BTreeMap<ID del cliente, (Cliente, Vec<Prestamo>)>
-#[derive(Default, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
 pub struct Biblioteca {
     pub nombre: String,
     pub direccion: String,
     pub libros: BTreeMap<u64, Libro>,
-    pub prestamos: BTreeMap<u32, (Cliente, Vec<Prestamo>)> // <ID cliente, (Cliente, Vec<Préstamo>)>
+    pub clientes: BTreeMap<u32, (Cliente, Vec<Prestamo>)> // <ID cliente, (Cliente, Vec<Préstamo>)>
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
-enum ErrorDecrementarStock {
+#[derive(Error, Clone, PartialEq, PartialOrd)]
+pub enum ErrorDecrementarStock {
     StockEsCero, LibroNoExiste
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
-enum ErrorIncrementarStock {
+#[derive(Error, Clone, PartialEq, PartialOrd)]
+pub enum ErrorIncrementarStock {
     LibroNoExiste, Overflow
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
-enum ErrorRealizarPrestamo {
-    PrestamosMaximosAlcanzados, StockInsuficiente, LibroNoExiste
+#[derive(Error, Clone, PartialEq, PartialOrd)]
+pub enum ErrorRealizarPrestamo {
+    PrestamosMaximosAlcanzados, StockInsuficiente, ClienteInexistente, LibroNoExiste
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
-enum ErrorBuscarPrestamo {
+#[derive(Error, Clone, PartialEq, PartialOrd)]
+pub enum ErrorBuscarPrestamo {
     PrestamoInexistente, ClienteInexistente
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
-enum ErrorDevolverLibro {
+#[derive(Error, Clone, PartialEq, PartialOrd)]
+pub enum ErrorDevolverLibro {
     PrestamoInexistente, ClienteInexistente, LibroYaDevuelto
 }
+
+type Libros = BTreeMap<u64, Libro>;
+type Clientes = BTreeMap<u32, (Cliente, Vec<Prestamo>)>;
 
 impl Biblioteca {
 
@@ -49,20 +57,38 @@ impl Biblioteca {
     /// Crea una nueva instancia de biblioteca
     ///
     /// #### Recibe:<br>
-    /// `nombre` - Nombre de la biblioteca<br>
-    /// `direccion` - Dirección de la biblioteca<br>
-    /// `libros` - Opcional: Lista de libros de la biblioteca<br>
-    /// `prestamos` - Opcional: Lista de préstamos de la biblioteca<br>
+    /// - `nombre` - Nombre de la biblioteca
+    /// - `direccion` - Dirección de la biblioteca
+    /// - `libros` - Opcional: Lista de libros de la biblioteca.
+    /// - `prestamos` - Opcional: Lista de préstamos de la biblioteca<br>
+    ///   * Si `libros` o `prestamos` son None, intentará leer la información individualmente de disco. De no poder, creará un conjunto vacío.
+    ///   * Si `libros` o `prestamos` son Some(data), creará un nuevo archivo que contenga data.
     ///
     /// #### Devuelve:
     /// `Biblioteca` - Nueva instancia de Biblioteca
-    fn new(nombre: String, direccion: String, libros: Option<BTreeMap<u64, Libro>>, prestamos: Option<BTreeMap<u32, (Cliente, Vec<Prestamo>)>>) -> Biblioteca {
-        Biblioteca {
+    pub fn new(nombre: String, direccion: String, libros: Option<Libros>, clientes: Option<Clientes>) -> Biblioteca {
+        let mut biblioteca = Biblioteca {
             nombre,
             direccion,
-            libros: libros.unwrap_or_default(),
-            prestamos: prestamos.unwrap_or_default()
-        }
+            libros: Libros::new(),
+            clientes: Clientes::new()
+        };
+
+        if let Some(data) = libros {
+            biblioteca.libros = data;
+            biblioteca.sobreescribir_archivo_libros();
+        } else {
+            biblioteca.libros = biblioteca.leer_archivo_libros().unwrap_or_default()
+        };
+
+        if let Some(data) = clientes {
+            biblioteca.clientes = data;
+            biblioteca.sobreescribir_archivo_clientes();
+        } else {
+            biblioteca.clientes = biblioteca.leer_archivo_clientes().unwrap_or_default()
+        };
+
+        biblioteca
     }
 
     /// ### fn cantidad_de_copias_en_stock(isbn) -> Option<u32>
@@ -74,7 +100,7 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `Some(u32)` - Cantidad (u32) de libros en stock<br>
     /// `None` - No existe el libro consultado
-    fn cantidad_de_copias_en_stock(&self, isbn: u64) -> Option<u32> {
+    pub fn cantidad_de_copias_en_stock(&self, isbn: u64) -> Option<u32> {
         self.libros.get(&isbn).map(|libro| libro.stock)
     }
 
@@ -87,18 +113,20 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `u32` - Cantidad de libros después de decrementar<br>
     /// `ErrorDecrementarStock` - El stock es cero o el libro no existe
-    fn decrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, ErrorDecrementarStock> {
-        match self.libros.get_mut(&isbn) {
+    pub fn decrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, ErrorDecrementarStock> {
+        let stock_restante = match self.libros.get_mut(&isbn) {
+            None => return Err(ErrorDecrementarStock::LibroNoExiste),
             Some(libro) => {
                 if libro.stock == 0 {
-                    Err(ErrorDecrementarStock::StockEsCero)
-                } else {
-                    libro.stock-= 1;
-                    Ok(libro.stock)
+                    return Err(ErrorDecrementarStock::StockEsCero)
                 }
-            },
-            None => Err(ErrorDecrementarStock::LibroNoExiste)
-        }
+                libro.stock-= 1;
+                libro.stock
+            }
+        };
+
+        self.sobreescribir_archivo_libros();
+        Ok(stock_restante)
     }
 
 
@@ -111,18 +139,20 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `u32` - Cantidad de libros después de decrementar<br>
     /// `ErrorIncrementarStock` - El stock es `u32::MAX` o el libro no existe
-    fn incrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, ErrorIncrementarStock> {
-        match self.libros.get_mut(&isbn) {
+    pub fn incrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, ErrorIncrementarStock> {
+        let stock_restante = match self.libros.get_mut(&isbn) {
             Some(libro) => {
                 if libro.stock == u32::MAX {
-                    Err(ErrorIncrementarStock::Overflow)
-                } else {
-                    libro.stock+= 1;
-                    Ok(libro.stock)
+                    return Err(ErrorIncrementarStock::Overflow)
                 }
+                libro.stock-= 1;
+                libro.stock
             },
-            None => Err(ErrorIncrementarStock::LibroNoExiste)
-        }
+            None => return Err(ErrorIncrementarStock::LibroNoExiste)
+        };
+
+        self.sobreescribir_archivo_libros();
+        Ok(stock_restante)
     }
 
     /// ### fn cantidad_prestamos_cliente(cliente) -> Option<usize>
@@ -134,15 +164,8 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `Some(usize)` - Cantidad de préstamos efectuados al cliente<br>
     /// `None` - El cliente no existe
-    fn cantidad_prestamos_cliente(&self, cliente: u32) -> Option<usize> {
-        // match self.prestamos.get(cliente) {
-        //     Some(cliente) => {
-        //         Some(cliente.len())
-        //     },
-        //     None => None
-        // }
-
-        self.prestamos.get(&cliente).map(|cliente| cliente.1.len()) // compiler suggestion
+    pub fn cantidad_prestamos_cliente(&self, cliente: u32) -> Option<usize> {
+        self.clientes.get(&cliente).map(|cliente| cliente.1.len())
     }
 
     /// ### fn cantidad_stock_libro(isbn) -> Option<u32>
@@ -154,8 +177,8 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `Some(u32)` - Cantidad de libros en stock<br>
     /// `None` - El libro no existe
-    fn cantidad_stock_libro(&self, isbn: u64) -> Option<u32> {
-        self.libros.get(&isbn).map(|libro| libro.stock) // compiler suggestion
+    pub fn cantidad_stock_libro(&self, isbn: u64) -> Option<u32> {
+        self.libros.get(&isbn).map(|libro| libro.stock)
     }
 
     /// ### fn realizar_prestamo(cliente, isbn, vencimiento) -> Result(usize, ErrorRealizarPrestamo)
@@ -168,7 +191,7 @@ impl Biblioteca {
     ///
     /// #### Devuelve:<br>
     /// `usize` - Cantidad de préstamos del cliente, incluyendo el recién realizado
-    fn realizar_prestamo(&mut self, cliente: Cliente, isbn: u64, vencimiento: Fecha) -> Result<usize, ErrorRealizarPrestamo> /* <Cant. préstamos del cliente, Error> */ {
+    pub fn realizar_prestamo(&mut self, id_cliente: u32, isbn: u64, vencimiento: Fecha) -> Result<usize, ErrorRealizarPrestamo> /* <Cant. préstamos vigentes del cliente, Error> */ {
         match self.libros.get(&isbn) {
             Some(libro) => {
                 if libro.stock == 0 {
@@ -178,32 +201,35 @@ impl Biblioteca {
             None => return Err(ErrorRealizarPrestamo::LibroNoExiste)
         }
 
-        let prestamo = Prestamo::new(isbn, cliente.id, vencimiento, None, EstadoPrestamo::Prestando);
-
-        match self.prestamos.get_mut(&cliente.id) {
+        // obtener cliente
+        let datos_cliente = match self.clientes.get_mut(&id_cliente) {
             Some(dato) => {
-                let cant_libros_no_devueltos = dato.1.iter().filter(|p| p.devolucion.is_none() && p.estado == EstadoPrestamo::Prestando).count();
-                if cant_libros_no_devueltos >= 5 {
-                    return Err(ErrorRealizarPrestamo::PrestamosMaximosAlcanzados);
-                }
-
-                // si el préstamo alguna vez se realizó, eliminar el antiguo préstamo
-                dato.1.retain(|p| p.isbn != isbn);
-
-                // quitar stock al libro a prestar
-                // no puedo usar self.decrementar_stock_libro() porque tendría 2 borrows mutables en simultáneo
-                if let Some(libro) = self.libros.get_mut(&isbn) { libro.stock-= 1 } // compiler suggestion
-
-                dato.1.push(prestamo);
-                Ok(cant_libros_no_devueltos)
+                dato
             },
-            None => {
-                // insertar cliente
-                self.prestamos.insert(cliente.id, (cliente, vec![prestamo]));
-                self.decrementar_stock_libro(isbn);
-                Ok(1)
-            }
+            None => { return Err(ErrorRealizarPrestamo::ClienteInexistente) }
+        };
+
+        // check cant. max. prestamos
+        let cant_libros_no_devueltos = datos_cliente.1.iter().filter(|p| p.estado == EstadoPrestamo::Prestando).count();
+        if cant_libros_no_devueltos >= MAX_PRESTAMOS_ACTIVOS {
+            return Err(ErrorRealizarPrestamo::PrestamosMaximosAlcanzados);
         }
+
+        // si el préstamo alguna vez se realizó: eliminarlo para reemplazarlo.
+        datos_cliente.1.retain(|p| p.isbn != isbn);
+
+        // realizar préstamo
+        let prestamo = Prestamo::new(isbn, id_cliente, vencimiento, None, EstadoPrestamo::Prestando);
+        datos_cliente.1.push(prestamo);
+
+        // reducir stock
+        if let Some(libro) = self.libros.get_mut(&isbn) {
+            libro.stock-= 1;
+        }
+
+        self.sobreescribir_archivo_clientes();
+
+        Ok(cant_libros_no_devueltos + 1)
     }
 
     /// ### fn prestamos_a_vencer(feca_hoy, dias) -> Vec<&Prestamo>
@@ -215,14 +241,14 @@ impl Biblioteca {
     ///
     /// #### Devuelve:<br>
     /// `Vec<&Prestamo>` - Los préstamos que vencerán en los próximos `dias` días
-    fn prestamos_por_vencer(&self, fecha_hoy: Fecha, dias: u32) -> Vec<&Prestamo> {
+    pub fn prestamos_por_vencer(&self, fecha_hoy: Fecha, dias: u32) -> Vec<&Prestamo> {
         let mut prestamos_por_vencer: Vec<&Prestamo> = Vec::new();
 
         let mut fecha_limte = fecha_hoy;
         fecha_limte.sumar_dias(dias);
         let fecha_limite = fecha_limte; // quitar mutabilidad
 
-        for prestamos_cliente in self.prestamos.values() {
+        for prestamos_cliente in self.clientes.values() {
             for prestamo in &prestamos_cliente.1 {
 
                 match &prestamo.devolucion {
@@ -248,10 +274,10 @@ impl Biblioteca {
     ///
     /// #### Devuelve:<br>
     /// `Vec<&Prestamo>` - Los préstamos que han vencido
-    fn prestamos_vencidos(&self, fecha_hoy: Fecha) -> Vec<&Prestamo> {
+    pub fn prestamos_vencidos(&self, fecha_hoy: Fecha) -> Vec<&Prestamo> {
         let mut prestamos_vencidos: Vec<&Prestamo> = Vec::new();
 
-        for prestamos_cliente in self.prestamos.values() {
+        for prestamos_cliente in self.clientes.values() {
             for prestamo in &prestamos_cliente.1 {
                 if prestamo.estado == EstadoPrestamo::Prestando && prestamo.vencimiento < fecha_hoy {
                     prestamos_vencidos.push(prestamo);
@@ -272,8 +298,8 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `&Prestamo` - El préstamo buscado<br>
     /// `ErrorBuscarPrestamo` - El préstamo o el cliente no existen
-    fn buscar_prestamo(&self, isbn: u64, id_cliente: u32) -> Result<&Prestamo, ErrorBuscarPrestamo> {
-        match self.prestamos.get(&id_cliente) {
+    pub fn buscar_prestamo(&self, isbn: u64, id_cliente: u32) -> Result<&Prestamo, ErrorBuscarPrestamo> {
+        match self.clientes.get(&id_cliente) {
             Some(dato) => {
                 for prestamo in &dato.1 {
                     if prestamo.isbn == isbn { return Ok(prestamo) }
@@ -293,30 +319,39 @@ impl Biblioteca {
     /// `fecha_hoy` - La fecha de hoy<br>
     ///
     /// #### Devuelve:<br>
-    /// `&Prestamo` - El préstamo del libro que se ha devuelto<br>
+    /// `usize` - La cantidad de dicho libro en stock después de ser devuelto<br>
     /// `ErrorDevolverLibro` - El cliente o el préstamo no existen o ya fue devuelto
-    fn devolver_libro(&mut self, isbn: u64, id_cliente: u32, fecha_hoy: Fecha) -> Result<&Prestamo, ErrorDevolverLibro> {
-        match self.prestamos.get_mut(&id_cliente) {
-            None => Err(ErrorDevolverLibro::ClienteInexistente),
-            Some(dato) => {
-                for prestamo in dato.1.iter_mut() {
-                    if prestamo.isbn == isbn {
-                        if prestamo.estado == EstadoPrestamo::Devuelto {
-                            return Err(ErrorDevolverLibro::LibroYaDevuelto)
-                        }
+    pub fn devolver_libro(&mut self, isbn: u64, id_cliente: u32, fecha_hoy: Fecha) -> Result<u32, ErrorDevolverLibro> {
+        let mut data_cliente = match self.clientes.get_mut(&id_cliente) {
+            Some(dato) => { dato },
+            None => return Err(ErrorDevolverLibro::ClienteInexistente),
+        }; todo!("algo no entendí de la mutabilidaad");
+        
+        let mut prestamo = 
+            if let Some(data) = data_cliente.1.iter_mut().find(|prestamo| prestamo.isbn == isbn ) {
+                data
+            } else { return Err(ErrorDevolverLibro::PrestamoInexistente) };
 
-                        prestamo.devolucion = Some(fecha_hoy);
-                        prestamo.estado = EstadoPrestamo::Devuelto;
-
-                        // no puedo usar self.incrementar_stock_libro() porque tendría 2 borrows mutables en simultáneo
-                        if let Some(libro) = self.libros.get_mut(&isbn) { libro.stock+= 1 }
-
-                        return Ok(prestamo)
-                    }
-                }
-                Err(ErrorDevolverLibro::PrestamoInexistente)
-            }
+        if prestamo.estado == EstadoPrestamo::Devuelto {
+            return Err(ErrorDevolverLibro::LibroYaDevuelto)
         }
+
+        if prestamo.devolucion.is_none() && prestamo.estado == EstadoPrestamo::Devuelto {
+            return Err(ErrorDevolverLibro::LibroYaDevuelto)
+        }
+
+        prestamo.devolucion = Some(fecha_hoy);
+        prestamo.estado = EstadoPrestamo::Devuelto;
+
+        let stock_libro = if let Some(libro) = self.libros.get_mut(&isbn) {
+            libro.stock+= 1;
+            libro.stock
+        } else { 0 };
+        
+        self.sobreescribir_archivo_libros();
+        self.sobreescribir_archivo_clientes();
+
+        Ok(stock_libro)
     }
 }
 
@@ -638,7 +673,7 @@ mod tests {
 
         let p1 = biblioteca.devolver_libro(1, 1, fecha5);
         let p1 = if let Err(err) = p1 { err } else { panic!("No debe dar ok.") };
-        
+
         assert_eq!(p1, ErrorDevolverLibro::LibroYaDevuelto);
     }
 

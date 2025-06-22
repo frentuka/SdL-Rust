@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
 const NOMBRE_MESES: [&str; 12] = ["Enero", "Febrero", "Marzo", "Abril",
     "Mayo", "Junio", "Julio", "Agosto",
     "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 pub struct Fecha {
     pub(crate) dia: u8,
     pub(crate) mes: u8,
