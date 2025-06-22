@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_json() {
-        veterinaria_de_pepe(10); // creará el .json
+        //veterinaria_de_pepe(10); // creará el .json
 
         match Veterinaria::new( // cargará el .json
             "Pepe's Pet Shop",
