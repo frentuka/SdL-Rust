@@ -423,6 +423,7 @@ impl Biblioteca {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
     use super::*;
     use crate::structs::libro::Genero;
 
@@ -881,5 +882,17 @@ mod tests {
             ResultRegistrarCliente::Exito { .. } => panic!("Debería ser error"),
             ResultRegistrarCliente::ClienteYaExiste => ()
         }
+    }
+
+    #[test]
+    fn test_doubleerror() {
+        let double_error = DoubleError::LocalError(ErrorBuscarPrestamo::ClienteInexistente); // just an example
+
+        assert!(double_error.is_local(), "Es un error local");
+
+        // don't mind the error's content. it's being forced to create an example
+        let double_error: DoubleError<ErrorBuscarPrestamo> = DoubleError::from(ResultSobreescribirArchivo::Success); // just an example
+
+        assert!(double_error.is_remote(), "Es un error remoto");
     }
 }

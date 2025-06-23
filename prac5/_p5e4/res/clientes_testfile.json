@@ -1,0 +1,58 @@
+{
+  "1": [
+    {
+      "id": 1,
+      "nombre": "pepe",
+      "telefono": "123",
+      "email": "pepe@gmail.com"
+    },
+    [
+      {
+        "isbn": 1,
+        "cliente": 1,
+        "vencimiento": {
+          "dia": 22,
+          "mes": 8,
+          "ano": 2002
+        },
+        "estado": "Prestando"
+      }
+    ]
+  ],
+  "2": [
+    {
+      "id": 2,
+      "nombre": "manuel",
+      "telefono": "123",
+      "email": "manuel@gmail.com"
+    },
+    [
+      {
+        "isbn": 2,
+        "cliente": 2,
+        "vencimiento": {
+          "dia": 23,
+          "mes": 6,
+          "ano": 2025
+        },
+        "estado": "Prestando"
+      },
+      {
+        "isbn": 3,
+        "cliente": 2,
+        "vencimiento": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 2025
+        },
+        "estado": {
+          "Devuelto": {
+            "dia": 19,
+            "mes": 11,
+            "ano": 2023
+          }
+        }
+      }
+    ]
+  ]
+}
