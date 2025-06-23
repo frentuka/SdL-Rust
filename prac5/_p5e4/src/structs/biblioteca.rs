@@ -1,7 +1,9 @@
+use std::collections::btree_map::Entry::Vacant;
 use std::collections::BTreeMap;
+use std::error::Error;
 use error_proc_macro::Error;
 use serde::{Deserialize, Serialize};
-use crate::structs::biblioteca_fm::BibliotecaFileManagement;
+use crate::structs::biblioteca_fm::{BibliotecaFileManagement, ErrorLeerArchivo, ResultSobreescribirArchivo};
 use crate::structs::cliente::Cliente;
 use crate::structs::fecha::Fecha;
 use crate::structs::prestamo::{EstadoPrestamo, Prestamo};
@@ -43,9 +45,51 @@ pub enum ErrorBuscarPrestamo {
     PrestamoInexistente, ClienteInexistente
 }
 
-#[derive(Error, Clone, PartialEq, PartialOrd)]
+#[derive(Error, PartialEq)]
 pub enum ErrorDevolverLibro {
-    PrestamoInexistente, ClienteInexistente, LibroYaDevuelto
+    PrestamoInexistente,
+    ClienteInexistente,
+    LibroYaDevuelto
+}
+
+#[derive(Debug)]
+pub enum ResultRegistrarLibro {
+    Exito{ resultado_fm: ResultSobreescribirArchivo },
+    LibroYaExiste,
+}
+
+#[derive(Debug)]
+pub enum ResultRegistrarCliente {
+    Exito{ resultado_fm: ResultSobreescribirArchivo },
+    ClienteYaExiste,
+}
+
+// some functions can have two kinds of erros: FileManagement (write in all cases) and Local errors.
+// specifically, the functions that make use if the File Management system.
+pub enum DoubleError<T: Error> {
+    LocalError(T),
+    RemoteError(ResultSobreescribirArchivo),
+}
+
+impl<T: Error> DoubleError<T> {
+    pub fn is_local(&self) -> bool {
+        matches!(self, DoubleError::LocalError(_))
+    }
+    pub fn is_remote(&self) -> bool {
+        !self.is_local()
+    }
+}
+
+impl<T: Error> From<T> for DoubleError<T> {
+    fn from(value: T) -> Self {
+        DoubleError::LocalError(value)
+    }
+}
+
+impl<T: Error> From<ResultSobreescribirArchivo> for DoubleError<T> {
+    fn from(value: ResultSobreescribirArchivo) -> Self {
+        DoubleError::RemoteError(value)
+    }
 }
 
 type Libros = BTreeMap<u64, Libro>;
@@ -91,6 +135,20 @@ impl Biblioteca {
         biblioteca
     }
 
+    pub fn registrar_libro(&mut self, libro: Libro) -> ResultRegistrarLibro {
+        if let Vacant(vacant) = self.libros.entry(libro.isbn) {
+            vacant.insert(libro);
+            ResultRegistrarLibro::Exito { resultado_fm: self.sobreescribir_archivo_libros() }
+        } else { ResultRegistrarLibro::LibroYaExiste }
+    }
+
+    pub fn registrar_cliente(&mut self, cliente: Cliente) -> ResultRegistrarCliente {
+        if let Vacant(vacant) = self.clientes.entry(cliente.id) {
+            vacant.insert((cliente, Vec::new()));
+            ResultRegistrarCliente::Exito { resultado_fm: self.sobreescribir_archivo_clientes() }
+        } else { ResultRegistrarCliente::ClienteYaExiste }
+    }
+
     /// ### fn cantidad_de_copias_en_stock(isbn) -> Option<u32>
     /// Devuelve la cantidad de copias disponibles de un libro
     ///
@@ -113,20 +171,24 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `u32` - Cantidad de libros después de decrementar<br>
     /// `ErrorDecrementarStock` - El stock es cero o el libro no existe
-    pub fn decrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, ErrorDecrementarStock> {
-        let stock_restante = match self.libros.get_mut(&isbn) {
-            None => return Err(ErrorDecrementarStock::LibroNoExiste),
+    pub fn decrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, DoubleError<ErrorDecrementarStock>> {
+        let nuevo_stock = match self.libros.get_mut(&isbn) {
             Some(libro) => {
                 if libro.stock == 0 {
-                    return Err(ErrorDecrementarStock::StockEsCero)
+                    return Err(ErrorDecrementarStock::StockEsCero.into())
                 }
                 libro.stock-= 1;
                 libro.stock
-            }
+            },
+            None => return Err(ErrorDecrementarStock::LibroNoExiste.into()),
         };
 
-        self.sobreescribir_archivo_libros();
-        Ok(stock_restante)
+        match self.sobreescribir_archivo_libros() {
+            ResultSobreescribirArchivo::Success => (),
+            x => return Err(x.into())
+        }
+
+        Ok(nuevo_stock)
     }
 
 
@@ -139,20 +201,24 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `u32` - Cantidad de libros después de decrementar<br>
     /// `ErrorIncrementarStock` - El stock es `u32::MAX` o el libro no existe
-    pub fn incrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, ErrorIncrementarStock> {
-        let stock_restante = match self.libros.get_mut(&isbn) {
+    pub fn incrementar_stock_libro(&mut self, isbn: u64) -> Result<u32, DoubleError<ErrorIncrementarStock>> {
+        let nuevo_stock = match self.libros.get_mut(&isbn) {
             Some(libro) => {
                 if libro.stock == u32::MAX {
-                    return Err(ErrorIncrementarStock::Overflow)
+                    return Err(ErrorIncrementarStock::Overflow.into())
                 }
-                libro.stock-= 1;
+                libro.stock+= 1;
                 libro.stock
             },
-            None => return Err(ErrorIncrementarStock::LibroNoExiste)
+            None => return Err(ErrorIncrementarStock::LibroNoExiste.into())
         };
 
-        self.sobreescribir_archivo_libros();
-        Ok(stock_restante)
+        match self.sobreescribir_archivo_libros() {
+            ResultSobreescribirArchivo::Success => (),
+            x => return Err(x.into())
+        }
+
+        Ok(nuevo_stock)
     }
 
     /// ### fn cantidad_prestamos_cliente(cliente) -> Option<usize>
@@ -185,20 +251,20 @@ impl Biblioteca {
     /// Realiza un préstamo del libro en nombre del cliente con el vencimiento especificado
     ///
     /// #### Recibe:<br>
-    /// `cliente` - Cliente a efectuar el préstamo<br>
+    /// `id_cliente` - ID del cliente a efectuar el préstamo<br>
     /// `isbn` - ID del libro a prestar<br>
     /// `vencimiento` - Fecha de vencimiento del préstamo<br>
     ///
     /// #### Devuelve:<br>
     /// `usize` - Cantidad de préstamos del cliente, incluyendo el recién realizado
-    pub fn realizar_prestamo(&mut self, id_cliente: u32, isbn: u64, vencimiento: Fecha) -> Result<usize, ErrorRealizarPrestamo> /* <Cant. préstamos vigentes del cliente, Error> */ {
+    pub fn realizar_prestamo(&mut self, id_cliente: u32, isbn: u64, vencimiento: Fecha) -> Result<usize, DoubleError<ErrorRealizarPrestamo>> /* <Cant. préstamos vigentes del cliente, Error> */ {
         match self.libros.get(&isbn) {
             Some(libro) => {
                 if libro.stock == 0 {
-                    return Err(ErrorRealizarPrestamo::StockInsuficiente)
+                    return Err(ErrorRealizarPrestamo::StockInsuficiente.into())
                 }
             },
-            None => return Err(ErrorRealizarPrestamo::LibroNoExiste)
+            None => return Err(ErrorRealizarPrestamo::LibroNoExiste.into())
         }
 
         // obtener cliente
@@ -206,20 +272,20 @@ impl Biblioteca {
             Some(dato) => {
                 dato
             },
-            None => { return Err(ErrorRealizarPrestamo::ClienteInexistente) }
+            None => { return Err(ErrorRealizarPrestamo::ClienteInexistente.into()) }
         };
 
         // check cant. max. prestamos
         let cant_libros_no_devueltos = datos_cliente.1.iter().filter(|p| p.estado == EstadoPrestamo::Prestando).count();
         if cant_libros_no_devueltos >= MAX_PRESTAMOS_ACTIVOS {
-            return Err(ErrorRealizarPrestamo::PrestamosMaximosAlcanzados);
+            return Err(ErrorRealizarPrestamo::PrestamosMaximosAlcanzados.into());
         }
 
         // si el préstamo alguna vez se realizó: eliminarlo para reemplazarlo.
         datos_cliente.1.retain(|p| p.isbn != isbn);
 
         // realizar préstamo
-        let prestamo = Prestamo::new(isbn, id_cliente, vencimiento, None, EstadoPrestamo::Prestando);
+        let prestamo = Prestamo::new(isbn, id_cliente, vencimiento, EstadoPrestamo::Prestando);
         datos_cliente.1.push(prestamo);
 
         // reducir stock
@@ -227,7 +293,15 @@ impl Biblioteca {
             libro.stock-= 1;
         }
 
-        self.sobreescribir_archivo_clientes();
+        match self.sobreescribir_archivo_libros() {
+            ResultSobreescribirArchivo::Success => (),
+            x => return Err(x.into())
+        }
+
+        match self.sobreescribir_archivo_clientes() {
+            ResultSobreescribirArchivo::Success => (),
+            x => return Err(x.into())
+        }
 
         Ok(cant_libros_no_devueltos + 1)
     }
@@ -251,15 +325,9 @@ impl Biblioteca {
         for prestamos_cliente in self.clientes.values() {
             for prestamo in &prestamos_cliente.1 {
 
-                match &prestamo.devolucion {
-                    Some(_) => continue, // ya fue devuelto, no contabilizar
-                    None => {
-                        if prestamo.devolucion.is_none() && prestamo.estado == EstadoPrestamo::Prestando && prestamo.vencimiento <= fecha_limite {
-                            prestamos_por_vencer.push(prestamo);
-                        }
-                    }
+                if prestamo.estado == EstadoPrestamo::Prestando && prestamo.vencimiento <= fecha_limite {
+                    prestamos_por_vencer.push(prestamo);
                 }
-
             }
         }
 
@@ -321,44 +389,51 @@ impl Biblioteca {
     /// #### Devuelve:<br>
     /// `usize` - La cantidad de dicho libro en stock después de ser devuelto<br>
     /// `ErrorDevolverLibro` - El cliente o el préstamo no existen o ya fue devuelto
-    pub fn devolver_libro(&mut self, isbn: u64, id_cliente: u32, fecha_hoy: Fecha) -> Result<u32, ErrorDevolverLibro> {
-        let mut data_cliente = match self.clientes.get_mut(&id_cliente) {
+    pub fn devolver_libro(&mut self, isbn: u64, id_cliente: u32, fecha_hoy: Fecha) -> Result<u32, DoubleError<ErrorDevolverLibro>> {
+        let data_cliente = match self.clientes.get_mut(&id_cliente) {
             Some(dato) => { dato },
-            None => return Err(ErrorDevolverLibro::ClienteInexistente),
-        }; todo!("algo no entendí de la mutabilidaad");
-        
-        let mut prestamo = 
+            None => return Err(ErrorDevolverLibro::ClienteInexistente.into()),
+        };
+
+        let prestamo =
             if let Some(data) = data_cliente.1.iter_mut().find(|prestamo| prestamo.isbn == isbn ) {
                 data
-            } else { return Err(ErrorDevolverLibro::PrestamoInexistente) };
+            } else { return Err(ErrorDevolverLibro::PrestamoInexistente.into()) };
 
-        if prestamo.estado == EstadoPrestamo::Devuelto {
-            return Err(ErrorDevolverLibro::LibroYaDevuelto)
+        if matches!(prestamo.estado, EstadoPrestamo::Devuelto(_)) {
+            return Err(ErrorDevolverLibro::LibroYaDevuelto.into())
         }
 
-        if prestamo.devolucion.is_none() && prestamo.estado == EstadoPrestamo::Devuelto {
-            return Err(ErrorDevolverLibro::LibroYaDevuelto)
-        }
-
-        prestamo.devolucion = Some(fecha_hoy);
-        prestamo.estado = EstadoPrestamo::Devuelto;
+        prestamo.estado = EstadoPrestamo::Devuelto(fecha_hoy);
 
         let stock_libro = if let Some(libro) = self.libros.get_mut(&isbn) {
             libro.stock+= 1;
             libro.stock
         } else { 0 };
-        
-        self.sobreescribir_archivo_libros();
-        self.sobreescribir_archivo_clientes();
+
+        match self.sobreescribir_archivo_libros() {
+            ResultSobreescribirArchivo::Success => (),
+            x => return Err(x.into())
+        }
+
+        match self.sobreescribir_archivo_clientes() {
+            ResultSobreescribirArchivo::Success => (),
+            x => return Err(x.into())
+        }
 
         Ok(stock_libro)
     }
 }
 
+//
+// tests
+//
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use crate::structs::biblioteca::{Biblioteca, ErrorBuscarPrestamo, ErrorDecrementarStock, ErrorDevolverLibro, ErrorIncrementarStock, ErrorRealizarPrestamo};
+    use crate::structs::biblioteca::{Biblioteca, DoubleError, ErrorBuscarPrestamo, ErrorDecrementarStock, ErrorDevolverLibro, ErrorIncrementarStock, ErrorRealizarPrestamo, ResultRegistrarCliente};
+    use crate::structs::biblioteca_fm::ResultSobreescribirArchivo;
     use crate::structs::cliente::Cliente;
     use crate::structs::fecha::Fecha;
     use crate::structs::libro::{Genero, Libro};
@@ -443,27 +518,43 @@ mod tests {
     fn test_cant_copias() {
         let mut biblioteca = biblioteca_de_pepe();
 
+        // test dec/inc libro inexistente
+
+        let res = match biblioteca.decrementar_stock_libro(5000) {
+            Ok(_) => { panic!("Debe ser error") }
+            Err(err) => {err}
+        };
+
+        let res = match res {
+            DoubleError::LocalError(err) => { err }
+            DoubleError::RemoteError(_) => { panic!("Debe ser un error local") }
+        };
+
+        assert_eq!(res, ErrorDecrementarStock::LibroNoExiste);
+
+        let res = match biblioteca.incrementar_stock_libro(5000) {
+            Ok(_) => { panic!("Debe ser error") }
+            Err(err) => {err}
+        };
+
+        let res = match res {
+            DoubleError::LocalError(err) => { err }
+            DoubleError::RemoteError(_) => { panic!("Debe ser un error local") }
+        };
+
+        assert_eq!(res, ErrorIncrementarStock::LibroNoExiste);
+
         // test dec
-
-        let res = biblioteca.decrementar_stock_libro(5000);
-
-        assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), ErrorDecrementarStock::LibroNoExiste);
-
-        let res = biblioteca.incrementar_stock_libro(5000);
-
-        assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), ErrorIncrementarStock::LibroNoExiste);
-
-        //
 
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(5).unwrap(), 5, "ISBN 5 tiene 5 copias");
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(3).unwrap(), 3, "ISBN 3 tiene 3 copias");
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(1).unwrap(), 1, "ISBN 1 tiene 1 copias");
 
-        biblioteca.decrementar_stock_libro(5);
-        biblioteca.decrementar_stock_libro(3);
-        biblioteca.decrementar_stock_libro(1);
+        let res1 = biblioteca.decrementar_stock_libro(5);
+        let res2 = biblioteca.decrementar_stock_libro(3);
+        let res3 = biblioteca.decrementar_stock_libro(1);
+
+        assert!(res1.is_ok()); assert!(res2.is_ok()); assert!(res3.is_ok());
 
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(5).unwrap(), 4, "ISBN 5 tiene 4 copias");
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(3).unwrap(), 2, "ISBN 3 tiene 2 copias");
@@ -471,55 +562,112 @@ mod tests {
 
         // test inc
 
-        biblioteca.incrementar_stock_libro(5);
-        biblioteca.incrementar_stock_libro(3);
-        biblioteca.incrementar_stock_libro(1);
+        let res1 = biblioteca.incrementar_stock_libro(5);
+        let res2 = biblioteca.incrementar_stock_libro(3);
+        let res3 = biblioteca.incrementar_stock_libro(1);
+
+        assert!(res1.is_ok()); assert!(res2.is_ok()); assert!(res3.is_ok());
 
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(5).unwrap(), 5, "ISBN 5 tiene 5 copias");
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(3).unwrap(), 3, "ISBN 3 tiene 3 copias");
         assert_eq!(biblioteca.cantidad_de_copias_en_stock(1).unwrap(), 1, "ISBN 1 tiene 1 copias");
 
-        // test 0
+        // test 0s
 
-        biblioteca.decrementar_stock_libro(1);
+        let res1 = biblioteca.decrementar_stock_libro(1);
+        let res2 = biblioteca.decrementar_stock_libro(5);
+        let res3 = biblioteca.decrementar_stock_libro(3);
 
-        biblioteca.decrementar_stock_libro(5);
-        biblioteca.decrementar_stock_libro(3);
-        let dec = biblioteca.decrementar_stock_libro(1);
+        let res_dec = biblioteca.decrementar_stock_libro(1);
 
-        assert_eq!(dec.unwrap_err(), ErrorDecrementarStock::StockEsCero, "stock debería ser cero");
+        let res_dec = match res_dec {
+            Ok(_) => { panic!("Debería ser error") }
+            Err(de) => {
+                match de {
+                    DoubleError::LocalError(err) => { err }
+                    DoubleError::RemoteError(_) => { panic!("Deberia ser un error local") }
+                }
+            }
+        };
+
+        assert_eq!(res_dec, ErrorDecrementarStock::StockEsCero, "stock debería ser cero");
 
         // test overflow
 
-        let inc = biblioteca.incrementar_stock_libro(u32::MAX as u64);
-        assert_eq!(inc.unwrap_err(), ErrorIncrementarStock::Overflow, "stock debería ser u32::MAX");
+        let res_inc = biblioteca.incrementar_stock_libro(u32::MAX as u64);
+
+        let res_inc = match res_inc {
+            Ok(_) => { panic!("Debería ser error") }
+            Err(de) => {
+                match de {
+                    DoubleError::LocalError(err) => { err }
+                    DoubleError::RemoteError(_) => { panic!("Deberia ser un error local") }
+                }
+            }
+        };
+
+        assert_eq!(res_inc, ErrorIncrementarStock::Overflow, "stock debería ser u32::MAX");
     }
+
 
     #[test]
     fn test_prestamos() {
-        let mut biblioteca = biblioteca_de_pepe();
+        let mut biblioteca = Biblioteca {
+            nombre: "asd".to_string(),
+            direccion: "asd".to_string(),
+            libros: BTreeMap::default(),
+            clientes: BTreeMap::default()
+        };
+        
+        biblioteca.registrar_libro(libro_economia_1());
+        biblioteca.registrar_libro(libro_xd_2());
+        biblioteca.registrar_libro(libro_harrypotter_3());
+        biblioteca.registrar_libro(libro_asd_4());
+        biblioteca.registrar_libro(libro_estadistica_5());
+        biblioteca.registrar_libro(libro_algo_u32max());
 
         // init realizar prestamos
+
+        match biblioteca.registrar_cliente(cliente_pepe()) {
+            ResultRegistrarCliente::Exito { resultado_fm } => {
+                match resultado_fm {
+                    ResultSobreescribirArchivo::Success => {}
+                    x => panic!("No deberían haber errores. {:?}", x)
+                }
+            }
+            ResultRegistrarCliente::ClienteYaExiste => { panic!("Cliente no existe") }
+        }
+
+        match biblioteca.registrar_cliente(cliente_manuel()) {
+            ResultRegistrarCliente::Exito { resultado_fm } => {
+                match resultado_fm {
+                    ResultSobreescribirArchivo::Success => {}
+                    x => panic!("No deberían haber errores. {:?}", x)
+                }
+            }
+            ResultRegistrarCliente::ClienteYaExiste => { panic!("Cliente no existe") }
+        }
+        
+        let id_pepe = cliente_pepe().id;
+        let id_manuel = cliente_manuel().id;
 
         let fecha5 = Fecha{ dia: 1, mes: 1, ano: 1 };
         let fecha3 = Fecha{ dia: 2, mes: 1, ano: 1 };
 
-        let p5 = biblioteca.realizar_prestamo(cliente_pepe(), 5, fecha5.clone());
-        let p3 = biblioteca.realizar_prestamo(cliente_manuel(), 3, fecha3.clone());
+        let p5 = match biblioteca.realizar_prestamo(id_pepe, 5, fecha5.clone()) {
+            Ok(val) => { val }
+            Err(_) => panic!("Deberia ser exitoso")
+        };
+        let p3 = match biblioteca.realizar_prestamo(id_manuel, 3, fecha3.clone()) {
+            Ok(val) => { val }
+            Err(_) => panic!("Deberia ser exitoso")
+        };
 
-        let cant_prestamos_pepe = if let Some(val) = biblioteca.cantidad_prestamos_cliente(cliente_pepe().id) { val } else { panic!() };
-        let cant_prestamos_manuel = if let Some(val) = biblioteca.cantidad_prestamos_cliente(cliente_manuel().id) { val } else { panic!() };
+        let cant_prestamos_pepe = if let Some(val) = biblioteca.cantidad_prestamos_cliente(id_pepe) { val } else { panic!() };
+        let cant_prestamos_manuel = if let Some(val) = biblioteca.cantidad_prestamos_cliente(id_manuel) { val } else { panic!() };
 
-        assert_eq!(cant_prestamos_pepe, 1);
-        assert_eq!(cant_prestamos_manuel, 1);
-
-        // check
-
-        if p5.is_err() { panic!("Error inesperado realizando préstamo: {:?}", p5.unwrap_err()) }
-        if p3.is_err() { panic!("Error inesperado realizando préstamo: {:?}", p3.unwrap_err()) }
-
-        assert_eq!(p5.unwrap(), 1, "Debería tener 1 préstamo");
-        assert_eq!(p3.unwrap(), 1, "Debería tener 1 préstamo");
+        assert_eq!(p5, cant_prestamos_pepe, "Debería ser equivalente");
+        assert_eq!(p3, cant_prestamos_manuel, "Debería ser equivalente");
 
         // init cant copias
 
@@ -550,8 +698,8 @@ mod tests {
 
         // init buscar prestamos
 
-        let buscar_prestamo5 = biblioteca.buscar_prestamo(5, cliente_pepe().id);
-        let buscar_prestamo3 = biblioteca.buscar_prestamo(3, cliente_manuel().id);
+        let buscar_prestamo5 = biblioteca.buscar_prestamo(5, id_pepe);
+        let buscar_prestamo3 = biblioteca.buscar_prestamo(3, id_manuel);
 
         // check
 
@@ -563,10 +711,10 @@ mod tests {
 
         // init-check devolver prestamos
 
-        let devolucion_prestamo5 = biblioteca.devolver_libro(5, cliente_pepe().id, fecha5.clone());
+        let devolucion_prestamo5 = biblioteca.devolver_libro(5, id_pepe, fecha5.clone());
         if devolucion_prestamo5.is_err() { panic!("") }
 
-        let devolucion_prestamo3 = biblioteca.devolver_libro(3, cliente_manuel().id, fecha3.clone());
+        let devolucion_prestamo3 = biblioteca.devolver_libro(3, id_manuel, fecha3.clone());
         if devolucion_prestamo3.is_err() { panic!("") }
 
         // init prestamos por vencer post-devolver
@@ -585,8 +733,8 @@ mod tests {
 
         // init buscar prestamos post-devolver
 
-        let buscar_prestamo5 = biblioteca.buscar_prestamo(5, cliente_pepe().id);
-        let buscar_prestamo3 = biblioteca.buscar_prestamo(3, cliente_manuel().id);
+        let buscar_prestamo5 = biblioteca.buscar_prestamo(5, id_pepe);
+        let buscar_prestamo3 = biblioteca.buscar_prestamo(3, id_manuel);
 
         // check
 
@@ -596,29 +744,26 @@ mod tests {
         assert_eq!(buscar_prestamo5.clone().unwrap().isbn, 5, "El préstamo encontrado debería ser sobre el libro #5");
         assert_eq!(buscar_prestamo3.clone().unwrap().isbn, 3, "El préstamo encontrado debería ser sobre el libro #3");
 
-        assert_eq!(buscar_prestamo5.clone().unwrap().estado, EstadoPrestamo::Devuelto, "El préstamo encontrado debería haber sido devuelto");
-        assert_eq!(buscar_prestamo3.clone().unwrap().estado, EstadoPrestamo::Devuelto, "El préstamo encontrado debería haber sido devuelto");
-
-        assert!(buscar_prestamo5.unwrap().devolucion.is_some(), "El préstamo encontrado debería haber sido devuelto");
-        assert!(buscar_prestamo3.unwrap().devolucion.is_some(), "El préstamo encontrado debería haber sido devuelto");
+        assert!(matches!(buscar_prestamo5.clone().unwrap().estado, EstadoPrestamo::Devuelto(_)), "El préstamo encontrado debería haber sido devuelto");
+        assert!(matches!(buscar_prestamo3.clone().unwrap().estado, EstadoPrestamo::Devuelto(_)), "El préstamo encontrado debería haber sido devuelto");
 
         // init max prestamos (5)
 
         let cant_stock_isbn5 = if let Some(val) = biblioteca.cantidad_stock_libro(5) { val } else { panic!() };
         assert_eq!(cant_stock_isbn5, 5);
 
-        let p1 = biblioteca.realizar_prestamo(cliente_pepe(), 1, fecha5.clone());
-        let p2 = biblioteca.realizar_prestamo(cliente_pepe(), 2, fecha5.clone());
-        let p3 = biblioteca.realizar_prestamo(cliente_pepe(), 3, fecha5.clone());
-        let p4 = biblioteca.realizar_prestamo(cliente_pepe(), 4, fecha5.clone());
-        let p5 = biblioteca.realizar_prestamo(cliente_pepe(), 5, fecha5.clone());
+        let p1 = biblioteca.realizar_prestamo(id_pepe, 1, fecha5.clone());
+        let p2 = biblioteca.realizar_prestamo(id_pepe, 2, fecha5.clone());
+        let p3 = biblioteca.realizar_prestamo(id_pepe, 3, fecha5.clone());
+        let p4 = biblioteca.realizar_prestamo(id_pepe, 4, fecha5.clone());
+        let p5 = biblioteca.realizar_prestamo(id_pepe, 5, fecha5.clone());
 
-        let p6 = biblioteca.realizar_prestamo(cliente_pepe(), u32::MAX as u64, fecha3.clone());
+        let p6 = biblioteca.realizar_prestamo(id_pepe, u32::MAX as u64, fecha3.clone());
 
         // check
 
-        let cant_prestamos_pepe = if let Some(val) = biblioteca.cantidad_prestamos_cliente(cliente_pepe().id) { val } else { panic!() };
-        let cant_prestamos_manuel = if let Some(val) = biblioteca.cantidad_prestamos_cliente(cliente_manuel().id) { val } else { panic!() };
+        let cant_prestamos_pepe = if let Some(val) = biblioteca.cantidad_prestamos_cliente(id_pepe) { val } else { panic!() };
+        let cant_prestamos_manuel = if let Some(val) = biblioteca.cantidad_prestamos_cliente(id_manuel) { val } else { panic!() };
 
         assert_eq!(cant_prestamos_pepe, 5);
         assert_eq!(cant_prestamos_manuel, 1);
@@ -633,15 +778,23 @@ mod tests {
         assert!(p5.is_ok(), "El préstamo debería ser exitoso");
 
         assert!(p6.is_err(), "El préstamo no debería ser exitoso");
-        assert_eq!(p6.unwrap_err(), ErrorRealizarPrestamo::PrestamosMaximosAlcanzados, "Debería haberse alcanzado el límite máximo de préstamos");
+        let p6 = p6.unwrap_err();
+        let p6 = match p6 {
+            DoubleError::LocalError(err) => err,
+            DoubleError::RemoteError(_) => panic!("El error deberia ser local")
+        };
+
+        assert_eq!(p6, ErrorRealizarPrestamo::PrestamosMaximosAlcanzados, "Debería haberse alcanzado el límite máximo de préstamos");
 
         // agotar stock
 
-        let p1 = biblioteca.realizar_prestamo(cliente_manuel(), 1, fecha5.clone());
-        let p1 = if let Err(err) = biblioteca.realizar_prestamo(cliente_manuel(), 1, fecha5.clone()) { err } else { panic!() };
+        let p1 = biblioteca.realizar_prestamo(id_manuel, 1, fecha5.clone());
+        let p1 = if let Err(err) = biblioteca.realizar_prestamo(id_manuel, 1, fecha5.clone()) { err } else { panic!() };
+        let p1 = if let DoubleError::LocalError(err) = p1 { err } else { panic!("El error debería ser local") };
         assert_eq!(p1, ErrorRealizarPrestamo::StockInsuficiente);
 
-        let p1 = if let Err(err) = biblioteca.realizar_prestamo(cliente_manuel(), 1000, fecha5.clone()) { err } else { panic!() };
+        let p1 = if let Err(err) = biblioteca.realizar_prestamo(id_manuel, 1000, fecha5.clone()) { err } else { panic!() };
+        let p1 = if let DoubleError::LocalError(err) = p1 { err } else { panic!("El error debería ser local") };
         assert_eq!(p1, ErrorRealizarPrestamo::LibroNoExiste);
 
         // prestamo/cliente inexistentes: buscar_prestamo
@@ -659,9 +812,11 @@ mod tests {
 
         let p1 = biblioteca.devolver_libro(13548, 1, fecha5);
         let p1 = if let Err(error) = p1 { error } else { panic!("Debe ser error") };
+        let p1 = if let DoubleError::LocalError(err) = p1 { err } else { panic!("El error debería ser local") };
 
         let p2 = biblioteca.devolver_libro(1, 13548, fecha5);
         let p2 = if let Err(error) = p2 { error } else { panic!("Debe ser error") };
+        let p2 = if let DoubleError::LocalError(err) = p2 { err } else { panic!("El error debería ser local") };
 
         assert_eq!(p1, ErrorDevolverLibro::PrestamoInexistente);
         assert_eq!(p2, ErrorDevolverLibro::ClienteInexistente);
@@ -673,18 +828,29 @@ mod tests {
 
         let p1 = biblioteca.devolver_libro(1, 1, fecha5);
         let p1 = if let Err(err) = p1 { err } else { panic!("No debe dar ok.") };
+        let p1 = if let DoubleError::LocalError(err) = p1 { err } else { panic!("El error debería ser local") };
 
         assert_eq!(p1, ErrorDevolverLibro::LibroYaDevuelto);
     }
 
     #[test]
     fn test_prestamos_vencidos() {
-        let mut biblioteca = biblioteca_de_pepe();
+        let mut biblioteca = Biblioteca {
+            nombre: "asd".to_string(),
+            direccion: "asd".to_string(),
+            libros: BTreeMap::default(),
+            clientes: BTreeMap::default()
+        };
+
+        biblioteca.registrar_cliente(cliente_manuel());
+        let id_manuel = cliente_manuel().id;
+
+        biblioteca.registrar_libro(libro_economia_1());
 
         let fecha_hoy = Fecha { dia: 2, mes: 1, ano: 0 };
         let fecha_ayer = Fecha { dia: 1, mes: 1, ano: 0 };
 
-        match biblioteca.realizar_prestamo(cliente_manuel(), 1, fecha_ayer) {
+        match biblioteca.realizar_prestamo(id_manuel, 1, fecha_ayer) {
             Ok(res) => { assert_eq!(res, 1, "Debe haber solo un préstamo") }
             Err(_) => { panic!("No debe haber error") }
         }
@@ -696,4 +862,42 @@ mod tests {
         assert_eq!(p_venc.len(), 0);
     }
 
+    #[test]
+    fn test_registrar_cliente() {
+        let mut biblioteca = Biblioteca {
+            nombre: "asd".to_string(),
+            direccion: "asd".to_string(),
+            libros: BTreeMap::default(),
+            clientes: BTreeMap::default()
+        };
+
+        let r1 = biblioteca.registrar_cliente(cliente_pepe());
+        let r2 = biblioteca.registrar_cliente(cliente_manuel());
+
+        let r1 = match r1 {
+            ResultRegistrarCliente::Exito { resultado_fm } => resultado_fm,
+            ResultRegistrarCliente::ClienteYaExiste => panic!("El cliente no debería existir")
+        };
+
+        let r2 = match r2 {
+            ResultRegistrarCliente::Exito { resultado_fm } => resultado_fm,
+            ResultRegistrarCliente::ClienteYaExiste => panic!("El cliente no debería existir")
+        };
+
+        assert_eq!(r1, ResultSobreescribirArchivo::Success, "Debería ser exito");
+        assert_eq!(r2, ResultSobreescribirArchivo::Success, "Debería ser exito");
+
+        let r1 = biblioteca.registrar_cliente(cliente_pepe());
+        let r2 = biblioteca.registrar_cliente(cliente_manuel());
+
+        match r1 {
+            ResultRegistrarCliente::Exito { .. } => panic!("Debería ser error"),
+            ResultRegistrarCliente::ClienteYaExiste => ()
+        };
+
+        match r2 {
+            ResultRegistrarCliente::Exito { .. } => panic!("Debería ser error"),
+            ResultRegistrarCliente::ClienteYaExiste => ()
+        };
+    }
 }

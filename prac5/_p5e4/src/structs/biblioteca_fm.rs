@@ -45,9 +45,10 @@ impl<'a> DataBiblioteca<'a> {
     }
 }
 
+#[derive(Debug)]
 pub enum ResultSobreescribirArchivo {
     Success,
-    IOError(io::Error),
+    IOError(io::Error), //io::Error == ()
     SerializationError(error::Error),
 }
 
@@ -57,7 +58,19 @@ pub enum ErrorLeerArchivo {
     DeserializationError(error::Error),
 }
 
-const BASE_FOLDER: &str = "/R:/appcrap/RustRover/SdL-Rust/prac5/_p5e4/res/";
+impl PartialEq for ResultSobreescribirArchivo {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
+impl PartialEq for ErrorLeerArchivo {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
+const BASE_FOLDER: &str = "R:/appcrap/RustRover/SdL-Rust/prac5/_p5e4/res/";
 const FILE_NAME_FORMAT: &str = "{}_{}.json"; // {biblioteca.nombre}_{libros/prestamos}.json
 const LIBROS_FILENAME: &str = "libros";
 const CLIENTES_FILENAME: &str = "clientes";

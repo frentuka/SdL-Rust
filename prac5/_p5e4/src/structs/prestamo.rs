@@ -12,19 +12,18 @@ pub struct Prestamo {
     pub isbn: u64, // isbn
     pub cliente: u32, // id
     pub vencimiento: Fecha,
-    pub devolucion: Option<Fecha>,
     pub estado: EstadoPrestamo
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
 pub enum EstadoPrestamo {
-    Devuelto, #[default] Prestando
+    Devuelto(Fecha), #[default] Prestando
 }
 
 impl Prestamo {
     
-    pub fn new(isbn: u64, cliente: u32, vencimiento: Fecha, devolucion: Option<Fecha>, estado: EstadoPrestamo) -> Prestamo {
-        Prestamo { isbn, cliente, vencimiento, devolucion, estado }
+    pub fn new(isbn: u64, cliente: u32, vencimiento: Fecha, estado: EstadoPrestamo) -> Prestamo {
+        Prestamo { isbn, cliente, vencimiento, estado }
     }
     
 }
