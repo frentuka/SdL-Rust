@@ -8,6 +8,8 @@
 //      Si puede agregar más en caso de que haga métodos nuevos para cumplir con este punto.
 //      Recuerde también que se debe seguir manteniendo un coverage de al menos 90%.
 
+#![deny(clippy::pedantic)]
+
 mod structs;
 
 fn main() {}

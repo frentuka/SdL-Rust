@@ -5,6 +5,46 @@
     "autor": "xd",
     "paginas": 1,
     "genero": "Tecnico",
-    "stock": 0
+    "stock": 1
+  },
+  "2": {
+    "isbn": 2,
+    "titulo": "xd",
+    "autor": "",
+    "paginas": 0,
+    "genero": "Otros",
+    "stock": 1
+  },
+  "3": {
+    "isbn": 3,
+    "titulo": "Harry Potter y qsy q mas",
+    "autor": "",
+    "paginas": 0,
+    "genero": "Otros",
+    "stock": 2
+  },
+  "4": {
+    "isbn": 4,
+    "titulo": "asd",
+    "autor": "",
+    "paginas": 0,
+    "genero": "Otros",
+    "stock": 3
+  },
+  "5": {
+    "isbn": 5,
+    "titulo": "Estadística",
+    "autor": "",
+    "paginas": 0,
+    "genero": "Otros",
+    "stock": 4
+  },
+  "4294967295": {
+    "isbn": 4294967295,
+    "titulo": "algo",
+    "autor": "",
+    "paginas": 0,
+    "genero": "Otros",
+    "stock": 4294967295
   }
 }

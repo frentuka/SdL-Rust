@@ -79,7 +79,7 @@ impl Fecha {
 
         while dias_restantes > 0 {
             let dias_mes_actual = self.dias_mes_actual();
-            let dias_para_proximo_mes = (dias_mes_actual - self.dia + 1) as u32;
+            let dias_para_proximo_mes = u32::from(dias_mes_actual - self.dia + 1);
 
             if dias_restantes >= dias_para_proximo_mes {
                 // ir al siguiente mes
@@ -93,7 +93,7 @@ impl Fecha {
                     self.ano+= 1;
                 }
             } else {
-                self.dia+= dias_restantes as u8;
+                self.dia += u8::try_from(dias_restantes).unwrap_or(0);
                 dias_restantes = 0;
             }
         }
@@ -103,9 +103,9 @@ impl Fecha {
         let mut dias_restantes = dias;
 
         while dias_restantes > 0 {
-            if dias_restantes >= self.dia as u32 {
+            if dias_restantes >= u32::from(self.dia) {
                 // ir al anterior mes
-                dias_restantes-= self.dia as u32;
+                dias_restantes-= u32::from(self.dia);
                 self.mes-= 1;
 
                 if self.mes < 1 {
@@ -116,7 +116,7 @@ impl Fecha {
                 // corregir self.dia == 0
                 self.dia = self.dias_mes_actual();
             } else {
-                self.dia-= dias_restantes as u8;
+                self.dia-= u8::try_from(dias_restantes).unwrap_or(0);
                 dias_restantes = 0;
             }
         }
@@ -151,9 +151,9 @@ mod test {
 
         // write!(f, "{} de {} del {}", self.dia, NOMBRE_MESES[self.mes as usize - 1], self.ano)
 
-        assert_ne!(format!("{}", valid_fecha), format!("{}", invalid_fecha));
-        assert_eq!(format!("{}", valid_fecha), format!("{} de {} del {}", valid_fecha.dia, NOMBRE_MESES[valid_fecha.mes as usize - 1], valid_fecha.ano));
-        assert_eq!(format!("{}", invalid_fecha), format!("{}/{}/{}", invalid_fecha.dia, invalid_fecha.mes, invalid_fecha.ano))
+        assert_ne!(format!("{valid_fecha}"), format!("{}", invalid_fecha));
+        assert_eq!(format!("{valid_fecha}"), format!("{} de {} del {}", valid_fecha.dia, NOMBRE_MESES[valid_fecha.mes as usize - 1], valid_fecha.ano));
+        assert_eq!(format!("{invalid_fecha}"), format!("{}/{}/{}", invalid_fecha.dia, invalid_fecha.mes, invalid_fecha.ano));
     }
 
     #[test]
@@ -169,22 +169,22 @@ mod test {
 
     #[test]
     fn test_bisiesto() {
-        let fecha = if let Some(fecha) = Fecha::new(1, 1, 0) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(1, 1, 0) else { panic!() };
         assert!(fecha.es_bisiesto());
 
-        let fecha = if let Some(fecha) = Fecha::new(1, 1, 2000) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(1, 1, 2000) else { panic!() };
         assert!(fecha.es_bisiesto());
 
-        let fecha = if let Some(fecha) = Fecha::new(1, 1, -4) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(1, 1, -4) else { panic!() };
         assert!(fecha.es_bisiesto());
 
-        let fecha = if let Some(fecha) = Fecha::new(1, 1, 1) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(1, 1, 1) else { panic!() };
         assert!(!fecha.es_bisiesto());
     }
 
     #[test]
     fn test_restar_dias() {
-        let mut fecha = if let Some(fecha) = Fecha::new(30, 04, 2016) { fecha } else { panic!() };
+        let Some(mut fecha) = Fecha::new(30, 04, 2016) else { panic!() };
 
         fecha.restar_dias(5000);
 
@@ -195,7 +195,7 @@ mod test {
 
     #[test]
     fn test_sumar_dias() {
-        let mut fecha = if let Some(fecha) = Fecha::new(22, 08, 2002) { fecha } else { panic!() };
+        let Some(mut fecha) = Fecha::new(22, 08, 2002) else { panic!() };
 
         fecha.sumar_dias(5000);
 
@@ -206,31 +206,31 @@ mod test {
 
     #[test]
     fn test_dias_mes_actual() {
-        let fecha = if let Some(fecha) = Fecha::new(22, 01, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 01, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 31);
-        let fecha = if let Some(fecha) = Fecha::new(22, 02, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 02, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 28);
-        let fecha = if let Some(fecha) = Fecha::new(22, 02, 2004) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 02, 2004) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 29);
-        let fecha = if let Some(fecha) = Fecha::new(22, 03, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 03, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 31);
-        let fecha = if let Some(fecha) = Fecha::new(22, 04, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 04, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 30);
-        let fecha = if let Some(fecha) = Fecha::new(22, 05, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 05, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 31);
-        let fecha = if let Some(fecha) = Fecha::new(22, 06, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 06, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 30);
-        let fecha = if let Some(fecha) = Fecha::new(22, 07, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 07, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 31);
-        let fecha = if let Some(fecha) = Fecha::new(22, 08, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 08, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 31);
-        let fecha = if let Some(fecha) = Fecha::new(22, 09, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 09, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 30);
-        let fecha = if let Some(fecha) = Fecha::new(22, 10, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 10, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 31);
-        let fecha = if let Some(fecha) = Fecha::new(22, 11, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 11, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 30);
-        let fecha = if let Some(fecha) = Fecha::new(22, 12, 2002) { fecha } else { panic!() };
+        let Some(fecha) = Fecha::new(22, 12, 2002) else { panic!() };
         assert_eq!(fecha.dias_mes_actual(), 31);
     }
 }

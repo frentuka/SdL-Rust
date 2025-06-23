@@ -6,7 +6,64 @@
       "telefono": "123",
       "email": "pepe@gmail.com"
     },
-    []
+    [
+      {
+        "isbn": 1,
+        "cliente": 1,
+        "vencimiento": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 1
+        },
+        "estado": {
+          "Devuelto": {
+            "dia": 1,
+            "mes": 1,
+            "ano": 1
+          }
+        }
+      },
+      {
+        "isbn": 2,
+        "cliente": 1,
+        "vencimiento": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 1
+        },
+        "estado": "Prestando"
+      },
+      {
+        "isbn": 3,
+        "cliente": 1,
+        "vencimiento": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 1
+        },
+        "estado": "Prestando"
+      },
+      {
+        "isbn": 4,
+        "cliente": 1,
+        "vencimiento": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 1
+        },
+        "estado": "Prestando"
+      },
+      {
+        "isbn": 5,
+        "cliente": 1,
+        "vencimiento": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 1
+        },
+        "estado": "Prestando"
+      }
+    ]
   ],
   "3": [
     {
@@ -15,6 +72,23 @@
       "telefono": "123",
       "email": "manuel@gmail.com"
     },
-    []
+    [
+      {
+        "isbn": 3,
+        "cliente": 3,
+        "vencimiento": {
+          "dia": 2,
+          "mes": 1,
+          "ano": 1
+        },
+        "estado": {
+          "Devuelto": {
+            "dia": 2,
+            "mes": 1,
+            "ano": 1
+          }
+        }
+      }
+    ]
   ]
 }

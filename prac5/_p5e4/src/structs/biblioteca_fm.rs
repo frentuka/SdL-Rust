@@ -75,14 +75,14 @@ const FILE_NAME_FORMAT: &str = "{}_{}.json"; // {biblioteca.nombre}_{libros/pres
 const LIBROS_FILENAME: &str = "libros";
 const CLIENTES_FILENAME: &str = "clientes";
 fn archivo_filepath(library_name: &str, file_kind: &str) -> String {
-    format!("{}{}_{}.json", BASE_FOLDER, library_name, file_kind)
+    format!("{BASE_FOLDER}{library_name}_{file_kind}.json")
 }
 
 //
 // IO part
 //
 
-fn sobreescribir_archivo(filename: String, data: DataBiblioteca) -> ResultSobreescribirArchivo {
+fn sobreescribir_archivo(filename: String, data: &DataBiblioteca) -> ResultSobreescribirArchivo {
     let json_string = match data {
         DataBiblioteca::Libros(data) => { serde_json::to_string_pretty(data) },
         DataBiblioteca::Clientes(data) => { serde_json::to_string_pretty(data) }
@@ -94,8 +94,8 @@ fn sobreescribir_archivo(filename: String, data: DataBiblioteca) -> ResultSobree
     };
 
     match fs::write(filename, text) {
-        Ok(_) => ResultSobreescribirArchivo::Success,
-        Err(error) => ResultSobreescribirArchivo::IOError(error)
+        Err(error) => ResultSobreescribirArchivo::IOError(error),
+        _ => ResultSobreescribirArchivo::Success
     }
 }
 
@@ -109,7 +109,7 @@ fn leer_archivo(filepath: String) -> Result<Value, ErrorLeerArchivo> {
     match file.read_to_string(&mut contents) {
         Ok(_) => {},
         Err(error) => return Err(ErrorLeerArchivo::IOError(error))
-    };
+    }
 
     match serde_json::from_str(&contents) {
         Err(error) => Err(ErrorLeerArchivo::DeserializationError(error)),
@@ -142,12 +142,12 @@ pub trait BibliotecaFileManagement {
 impl BibliotecaFileManagement for Biblioteca {
     fn sobreescribir_archivo_libros(&self) -> ResultSobreescribirArchivo {
         let data = DataBiblioteca::Libros(&self.libros);
-        sobreescribir_archivo(archivo_filepath(&self.nombre, LIBROS_FILENAME), data)
+        sobreescribir_archivo(archivo_filepath(&self.nombre, LIBROS_FILENAME), &data)
     }
 
     fn sobreescribir_archivo_clientes(&self) -> ResultSobreescribirArchivo {
         let data = DataBiblioteca::Clientes(&self.clientes);
-        sobreescribir_archivo(archivo_filepath(&self.nombre, CLIENTES_FILENAME), data)
+        sobreescribir_archivo(archivo_filepath(&self.nombre, CLIENTES_FILENAME), &data)
     }
 
     fn leer_archivo_libros(&self) -> Result<Libros, ErrorLeerArchivo> {
