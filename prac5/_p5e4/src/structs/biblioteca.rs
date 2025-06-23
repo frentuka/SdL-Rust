@@ -431,13 +431,8 @@ impl Biblioteca {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use crate::structs::biblioteca::{Biblioteca, DoubleError, ErrorBuscarPrestamo, ErrorDecrementarStock, ErrorDevolverLibro, ErrorIncrementarStock, ErrorRealizarPrestamo, ResultRegistrarCliente};
-    use crate::structs::biblioteca_fm::ResultSobreescribirArchivo;
-    use crate::structs::cliente::Cliente;
-    use crate::structs::fecha::Fecha;
-    use crate::structs::libro::{Genero, Libro};
-    use crate::structs::prestamo::{EstadoPrestamo, Prestamo};
+    use super::*;
+    use crate::structs::libro::Genero;
 
     fn biblioteca_de_pepe() -> Biblioteca {
         Biblioteca::new(
@@ -618,7 +613,7 @@ mod tests {
             libros: BTreeMap::default(),
             clientes: BTreeMap::default()
         };
-        
+
         biblioteca.registrar_libro(libro_economia_1());
         biblioteca.registrar_libro(libro_xd_2());
         biblioteca.registrar_libro(libro_harrypotter_3());
