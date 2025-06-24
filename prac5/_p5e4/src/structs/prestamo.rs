@@ -15,7 +15,7 @@ pub struct Prestamo {
     pub estado: EstadoPrestamo
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum EstadoPrestamo {
     Devuelto(Fecha), #[default] Prestando
 }

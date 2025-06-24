@@ -6,11 +6,13 @@ use std::fs::File;
 use std::io::Read;
 use error_proc_macro::Error;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{error, Error, Value};
 use crate::structs::biblioteca::Biblioteca;
 use crate::structs::cliente::Cliente;
-use crate::structs::libro::Libro;
-use crate::structs::prestamo::Prestamo;
+use crate::structs::fecha::Fecha;
+use crate::structs::libro::{Genero, Libro};
+use crate::structs::prestamo::{EstadoPrestamo, Prestamo};
 
 type Libros = BTreeMap<u64, Libro>;
 type Clientes = BTreeMap<u32, (Cliente, Vec<Prestamo>)>;

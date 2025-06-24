@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// De cada libro se conoce:
 ///     el título,
@@ -15,7 +15,16 @@ pub(crate) struct Libro {
     pub stock: u32
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, PartialEq, PartialOrd, Debug)]
+// impl<'de: 'a, 'a> Deserialize<'de> for Libro<'a> {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>
+//     {
+//         deserializer.deserialize_str();
+//     }
+// }
+
+#[derive(Serialize, Deserialize, Default, Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum Genero {
     Novela, Infantil, Tecnico, #[default] Otros
 }
