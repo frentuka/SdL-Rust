@@ -149,10 +149,7 @@ impl<'a> Veterinaria<'a> {
     pub fn agregar_mascota_prioridad(&mut self, mascota: Mascota) -> ResultAgregarMascota {
         if self.cola.len() == self.cola.capacity() { return ResultAgregarMascota::ColaLlena { capacity: self.cola.capacity() } }
         self.cola.push_front(mascota);
-        match sobreescribir_archivo_atenciones(self.nombre, &self.atenciones) {
-            ResultArchivoAtenciones::Written { json: _ } => ResultAgregarMascota::Exito,
-            x => ResultAgregarMascota::ArchivoAtenciones(x)
-        }
+        ResultAgregarMascota::Exito
     }
 
     // ➔ atender la próxima mascota de la cola.
@@ -240,7 +237,12 @@ impl<'a> Veterinaria<'a> {
              && a.mascota.dueno.nombre == nombre_dueno
              && a.diagnostico == diagnostico) {
 
-            ResultRemoverAtencion::Exito(self.atenciones.remove(index))
+            let atencion = self.atenciones.remove(index);
+
+            match sobreescribir_archivo_atenciones(&self.nombre, &self.atenciones) {
+                ResultArchivoAtenciones::Written { .. } => { ResultRemoverAtencion::Exito(atencion) },
+                x => ResultRemoverAtencion::ArchivoAtenciones(x)
+            }
         } else {
             ResultRemoverAtencion::AtencionInexistente { nombre_mascota, nombre_dueno, diagnostico }
         }
