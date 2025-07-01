@@ -44,40 +44,38 @@ Implemente las estructuras, funciones asociadas y traits necesarios para resolve
 
 use std::collections::HashMap;
 use crate::structs::producto::CategoriaProducto;
-use crate::structs::vendedor_cliente::Vendedor;
+use crate::structs::vendedor_cliente::{Cliente, Vendedor};
 use crate::structs::venta::Venta;
 
-struct Comercio<'a> {
-    vendedores: HashMap<u16, Vendedor>,
+struct Comercio {
+    vendedores: HashMap<u32, Vendedor>,
+    clientes: HashMap<u32, Cliente>, // modelo. cada vez que se ejecute una venta, debería sobreescribirse los datos del cliente
     descuentos: HashMap<CategoriaProducto, f32>,
-    ventas: Vec<Venta<'a>>
+    ventas: Vec<Venta>
 }
 
+#[derive(Default)]
 struct ReporteTotal {
     reporte_categorias: HashMap<CategoriaProducto, u16>,
-    reporte_vendedores: HashMap<u16, u16> // <legajo, ventas>
+    reporte_vendedores: HashMap<u32, u16> // <legajo, ventas>
 }
 
-impl<'a> Comercio<'a> {
+impl Comercio {
 
     // ➢ Para llevar un control de ventas realizadas se debe implementar
     //      un reporte que permita visualizar las ventas totales por categoría de producto y otro por vendedor.
     
     fn generar_reporte_total(&self) -> ReporteTotal {
-        let mut reporte_categorias: HashMap<CategoriaProducto, u16> = Default::default();
-        let mut reporte_vendedores: HashMap<u16, u16> = Default::default();
+        let mut reporte_total = ReporteTotal::default();
         
         for venta in &self.ventas {
             for (producto, cant) in &venta.productos {
-                *reporte_categorias.entry(producto.categoria).or_insert(0)+= cant;
-                *reporte_vendedores.entry(venta.vendedor.legajo).or_insert(0)+= cant;
+                *reporte_total.reporte_categorias.entry(producto.categoria).or_insert(0)+= cant;
+                *reporte_total.reporte_vendedores.entry(venta.vendedor).or_insert(0)+= cant;
             }
         }
         
-        ReporteTotal {
-            reporte_categorias,
-            reporte_vendedores
-        }
+        reporte_total
     }
     
 }

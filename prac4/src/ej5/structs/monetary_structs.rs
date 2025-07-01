@@ -9,22 +9,22 @@ use error_proc_macro::Error;
 use crate::structs::date::Date;
 
 pub struct BlockchainTransactionHash(String);
-impl<'a> BlockchainTransactionHash {
-    fn new(prefix: &'a str) -> BlockchainTransactionHash {
+impl BlockchainTransactionHash {
+    fn new(prefix: &str) -> BlockchainTransactionHash {
         BlockchainTransactionHash(format!("{}-{}", prefix, rand::random::<u32>()))
     }
 }
 
-pub struct BlockchainTransaction<'a> {
+pub struct BlockchainTransaction {
     pub data: CommonTransactionData,
-    pub blockchain: &'a str,
+    pub blockchain: String,
     pub hash: BlockchainTransactionHash,
-    pub crypto: &'a str,
+    pub crypto: String,
     pub quote: Quote
 }
 
-impl<'a> BlockchainTransaction<'a> {
-    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, blockchain: &'a str, hash: Option<BlockchainTransactionHash>, crypto: &'a str, quote: Quote) -> Result<Self, ErrorNewTransaction<'a>> {
+impl BlockchainTransaction {
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, blockchain: &str, hash: Option<BlockchainTransactionHash>, crypto: &str, quote: Quote) -> Result<Self, ErrorNewTransaction> {
         // invalid date
         if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
 
@@ -42,23 +42,27 @@ impl<'a> BlockchainTransaction<'a> {
 
         Ok(Self {
             data,
-            blockchain,
+            blockchain: blockchain.to_string(),
             hash,
-            crypto,
+            crypto: crypto.to_string(),
             quote
         })
     }
 }
 
-pub struct Blockchain<'a> {
-    pub name: &'a str,
-    pub prefix: &'a str,
-    pub supported_cryptos: Vec<&'a str>,
+pub struct Blockchain {
+    pub name: String,
+    pub prefix: String,
+    pub supported_cryptos: Vec<String>,
 }
 
-impl<'a> Blockchain<'a> {
-    fn new(name: &'a str, prefix: &'a str, supported_cryptos: Vec<&'a str>) -> Self {
-        Blockchain { name, prefix, supported_cryptos }
+impl Blockchain {
+    fn new(name: &str, prefix: &str, supported_cryptos: Vec<String>) -> Self {
+        Blockchain {
+            name: name.to_string(),
+            prefix: prefix.to_string(),
+            supported_cryptos
+        }
     }
 
     // ➢ Retirar criptomoneda a blockchain: dado un monto de una cripto y una blockchain
@@ -68,14 +72,18 @@ impl<'a> Blockchain<'a> {
     // Luego se genera una transacción con los siguientes datos:
     // fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
 
-    fn withdraw(&self, data: CommonTransactionData, transaction_type: TransactionType, crypto: &'a str, quote: Quote) -> Result<BlockchainTransaction, ErrorNewTransaction> {
-        if !self.supported_cryptos.contains(&crypto) { return Err(ErrorNewTransaction::CryptoNotSupportedByBlockchain { crypto, blockchain: self.name }) }
+    fn withdraw(&self, data: CommonTransactionData, transaction_type: TransactionType, crypto: &str, quote: Quote) -> Result<BlockchainTransaction, ErrorNewTransaction> {
+        if !self.supported_cryptos.contains(&crypto.to_string()) {
+            return Err(ErrorNewTransaction::CryptoNotSupportedByBlockchain {
+                crypto: crypto.to_string(),
+                blockchain: self.name.to_string()
+            }) }
         
         // all other checks are made by BlockchainTransaction::new()
         BlockchainTransaction::new(
             data,
             transaction_type,
-            self.name,
+            &self.name,
             None, // hash
             crypto,
             quote
@@ -92,17 +100,19 @@ pub enum ErrorNewCryptocurrency {
     MustHaveABlockchain
 }
 
-pub struct Cryptocurrency<'a> {
-    pub name: &'a str,
-    pub prefix: &'a str,
-    pub blockchains: Vec<&'a str> // blockchains prefix
+pub struct Cryptocurrency {
+    pub name: String,
+    pub prefix: String,
+    pub blockchains: Vec<String> // blockchains prefix
 }
 
-impl<'a> Cryptocurrency<'a> {
-    pub fn new(name: &'a str, prefix: &'a str, blockchains: Vec<&'a str>) -> Result<Self, ErrorNewCryptocurrency> {
+impl Cryptocurrency {
+    pub fn new(name: &str, prefix: &str, blockchains: Vec<String>) -> Result<Self, ErrorNewCryptocurrency> {
         if blockchains.is_empty() { return Err(ErrorNewCryptocurrency::MustHaveABlockchain) }
         Ok(Cryptocurrency {
-            name, prefix, blockchains
+            name: name.to_string(),
+            prefix: prefix.to_string(),
+            blockchains
         })
     }
 }
@@ -135,12 +145,12 @@ pub struct CommonTransactionData {
 //      donde los datos que se guardan son:fecha, tipo(ingreso de dinero), monto, usuario.
 
 #[derive(Error)]
-pub enum ErrorNewTransaction<'a> {
+pub enum ErrorNewTransaction {
     InvalidDate,
     InvalidInputAmount{ amount: f64 },
     InvalidTransactionType { transaction_type: TransactionType },
     BlockchainNotDeclared,
-    CryptoNotSupportedByBlockchain { crypto: &'a str, blockchain: &'a str },
+    CryptoNotSupportedByBlockchain { crypto: String, blockchain: String },
     FiatWithdrawalNeedsMean
 }
 
@@ -179,8 +189,8 @@ pub struct FiatTransaction {
 
 // all FIAT transfers will be treated as Argentine Peso transfers
 
-impl<'a> FiatTransaction {
-    pub fn new(data: CommonTransactionData, transaction_type: TransactionType) -> Result<Self, ErrorNewTransaction<'a>> {
+impl FiatTransaction {
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType) -> Result<Self, ErrorNewTransaction> {
         match transaction_type {
             TransactionType::FiatDeposit => (),
             TransactionType::FiatWithdrawal { .. } => (),
@@ -202,15 +212,15 @@ impl<'a> FiatTransaction {
 // Crypto Transaction
 //
 
-pub struct CryptoTransaction<'a> {
+pub struct CryptoTransaction {
     pub data: CommonTransactionData,
-    pub currency: &'a str,
+    pub currency: String,
 }
 
 // all FIAT transfers will all be treated as Argentine Peso transfers
 
-impl<'a> CryptoTransaction<'a> {
-    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, currency: &'a str) -> Result<Self, ErrorNewTransaction> {
+impl CryptoTransaction {
+    pub fn new(data: CommonTransactionData, transaction_type: TransactionType, currency: &str) -> Result<Self, ErrorNewTransaction> {
         if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
         if data.amount < 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount{ amount: data.amount }) }
 
@@ -224,7 +234,8 @@ impl<'a> CryptoTransaction<'a> {
 
 
         Ok(CryptoTransaction {
-            data, currency
+            data,
+            currency: currency.to_string()
         })
     }
 }

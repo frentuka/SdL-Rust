@@ -25,27 +25,27 @@ Nota: Implemente todos los métodos y traits que considere para resolver los eje
  */
 
 #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
-struct Persona<'a> {
-    nombre:&'a str,
-    apellido:&'a str,
-    direccion:&'a str,
-    ciudad:&'a str,
-    salario:f64,
-    edad:u8,
+struct Persona {
+    nombre: String,
+    apellido: String,
+    direccion: String,
+    ciudad: String,
+    salario: f64,
+    edad: u8,
 }
 
-trait VecPersona<'a> {
-    fn a_personas_salario_mayor(&'a self, num: f64) -> Option<Vec<&'a Persona<'a>>>;
-    fn b_personas_mayores_edad_en_ciudad(&'a self, ciudad: &'a str, edad: u8) -> Vec<&'a Persona<'a>>;
-    fn c_todos_viven_en_ciudad(&'a self, ciudad: &'a str) -> bool;
-    fn d_alguien_vive_en_ciudad(&'a self, ciudad: &'a str) -> bool;
-    fn e_persona_existe(&'a self, persona: &Persona) -> bool;
-    fn f_listar_edades(&'a self) -> Vec<u8>;
-    fn g_mayor_menor_salario(&'a self) -> Option<(&'a Persona<'a>, &'a Persona<'a>)>;
+trait VecPersona {
+    fn a_personas_salario_mayor(&self, num: f64) -> Option<Vec<&Persona>>;
+    fn b_personas_mayores_edad_en_ciudad(&self, ciudad: &str, edad: u8) -> Vec<&Persona>;
+    fn c_todos_viven_en_ciudad(&self, ciudad: &str) -> bool;
+    fn d_alguien_vive_en_ciudad(&self, ciudad: &str) -> bool;
+    fn e_persona_existe(&self, persona: &Persona) -> bool;
+    fn f_listar_edades(&self) -> Vec<u8>;
+    fn g_mayor_menor_salario(&self) -> Option<(&Persona, &Persona)>;
 }
 
-impl<'a> VecPersona<'a> for Vec<Persona<'a>> {
-    fn a_personas_salario_mayor(&'a self, num: f64) -> Option<Vec<&'a Persona<'a>>> {
+impl VecPersona for Vec<Persona> {
+    fn a_personas_salario_mayor(&self, num: f64) -> Option<Vec<&Persona>> {
         if num < 0.0 { return None } // num debe ser un número positivo
 
         Some(
@@ -56,31 +56,31 @@ impl<'a> VecPersona<'a> for Vec<Persona<'a>> {
         )
     }
 
-    fn b_personas_mayores_edad_en_ciudad(&'a self, ciudad: &'a str, edad: u8) -> Vec<&'a Persona<'a>> {
+    fn b_personas_mayores_edad_en_ciudad(&self, ciudad: &str, edad: u8) -> Vec<&Persona> {
         self.iter().filter(|p|
             p.ciudad == ciudad && p.edad > edad
         ).collect()
     }
 
-    fn c_todos_viven_en_ciudad(&'a self, ciudad: &'a str) -> bool {
+    fn c_todos_viven_en_ciudad(&self, ciudad: &str) -> bool {
         self.iter().all(|p| p.ciudad == ciudad)
     }
 
-    fn d_alguien_vive_en_ciudad(&'a self, ciudad: &'a str) -> bool {
+    fn d_alguien_vive_en_ciudad(&self, ciudad: &str) -> bool {
         self.iter().any(|p| p.ciudad == ciudad)
     }
 
-    fn e_persona_existe(&'a self, persona: &Persona) -> bool {
+    fn e_persona_existe(&self, persona: &Persona) -> bool {
         self.iter().any(|p| p == persona)
     }
 
-    fn f_listar_edades(&'a self) -> Vec<u8> {
+    fn f_listar_edades(&self) -> Vec<u8> {
         self.iter().map(|p| {
             p.edad
         }).collect()
     }
 
-    fn g_mayor_menor_salario(&'a self) -> Option<(&'a Persona<'a>, &'a Persona<'a>)> {
+    fn g_mayor_menor_salario(&self) -> Option<(&Persona, &Persona)> {
         if self.len() < 2 { return None } // no min/max can be calculated with 1 or 0 elements
 
         let first_person = self.first();

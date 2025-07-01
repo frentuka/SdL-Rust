@@ -63,11 +63,11 @@ impl MedioDePago {
     }
 }
 
-struct StreamingRust<'a> {
-    usuarios: BTreeMap<u64, Usuario<'a>>
+struct StreamingRust {
+    usuarios: BTreeMap<u64, Usuario>
 }
 
-impl<'a> StreamingRust<'a> {
+impl StreamingRust {
     
     fn new(usuarios: Option<BTreeMap<u64, Usuario>>) -> StreamingRust {
         StreamingRust { usuarios: usuarios.unwrap_or_default() }

@@ -21,16 +21,20 @@
 use crate::structs::errores::{ErrorDegradarSuscripcion, ErrorMejorarSuscripcion};
 use crate::structs::suscripcion::{Suscripcion, TipoSuscripcion};
 
-pub struct Usuario<'a> {
+pub struct Usuario {
     pub id: u64,
-    pub email: &'a str,
+    pub email: String,
     pub suscripcion: Suscripcion,
 }
 
-impl<'a> Usuario<'a> {
+impl Usuario {
     // ➢ Crear un usuario con una determinada suscripción y medio de pago.
-    fn new(id: u64, email: &'a str, suscripcion: Suscripcion) -> Self {
-        Usuario { id, email, suscripcion }
+    fn new(id: u64, email: &str, suscripcion: Suscripcion) -> Self {
+        Usuario {
+            id,
+            email: email.to_string(),
+            suscripcion
+        }
     }
 
     // ➢ Dado un usuario hacer un upgrade sobre la suscripción. Es decir si está a Basic pasa a Clasic y si está en Clasic pasa a Super.

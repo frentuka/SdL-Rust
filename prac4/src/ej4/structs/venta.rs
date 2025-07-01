@@ -60,18 +60,18 @@ pub enum MedioDePago {
 //     transferencia bancaria
 //     y efectivo.
 
-pub struct Venta<'a> {
+pub struct Venta {
     pub fecha: Fecha,
-    pub cliente: &'a Cliente<'a>,
-    pub vendedor: &'a Vendedor,
+    pub cliente: u32, // cliente.dni
+    pub vendedor: u32, // vendedor.legajo
     pub medio_de_pago: MedioDePago,
-    pub productos: HashMap<Producto<'a>, u16>,
+    pub productos: HashMap<Producto, u16>,
 }
 
-impl<'a> Venta<'a> {
+impl Venta {
 
     // ➢ Crear una venta con: fecha, cliente, vendedor, medio de pago y un listado de productos con sus cantidades.
-    fn new(fecha: Fecha, cliente: &'a Cliente, vendedor: &'a Vendedor, medio_de_pago: MedioDePago, productos: HashMap<Producto<'a>, u16>) -> Option<Venta<'a>> {
+    fn new(fecha: Fecha, cliente: u32, vendedor: u32, medio_de_pago: MedioDePago, productos: HashMap<Producto, u16>) -> Option<Venta> {
         if !fecha.es_fecha_valida() { return None }
 
         Some(Venta {

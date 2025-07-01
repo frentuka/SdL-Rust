@@ -47,7 +47,7 @@ Implemente las estructuras, funciones asociadas y traits necesarios para resolve
 //         antigüedad
 //         y salario.
 pub struct Vendedor {
-    pub legajo: u16,
+    pub legajo: u32,
     pub antiguedad_anos: u8,
     pub salario: f64,
 }
@@ -57,27 +57,32 @@ pub struct Vendedor {
 //         apellido,
 //         dirección,
 //         dni
-pub struct Cliente<'a> {
-    pub nombre: &'a str,
-    pub apellido: &'a str,
-    pub direccion: &'a str,
+pub struct Cliente {
+    pub nombre: String,
+    pub apellido: String,
+    pub direccion: String,
     pub dni: u32 // u32::MAX = 4.xxx.xxx.xxx
 }
 
 impl Vendedor {
-    fn new(legajo: u16, antiguedad_anos: u8, salario: f64) -> Option<Vendedor> {
+    fn new(legajo: u32, antiguedad_anos: u8, salario: f64) -> Option<Vendedor> {
         if salario < 0.0 { return None }
         
         Some(Vendedor {
-            legajo, antiguedad_anos, salario
+            legajo,
+            antiguedad_anos,
+            salario
         })
     }
 }
 
-impl<'a> Cliente<'a> {
-    fn new(nombre: &'a str, apellido: &'a str, direccion: &'a str, dni: u32) -> Cliente<'a> {
+impl Cliente {
+    fn new(nombre: &str, apellido: &str, direccion: &str, dni: u32) -> Cliente {
         Cliente {
-            nombre, apellido, direccion, dni
+            nombre: nombre.to_string(),
+            apellido: apellido.to_string(),
+            direccion: direccion.to_string(),
+            dni
         }
     }
 }

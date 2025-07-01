@@ -114,17 +114,17 @@ impl AsBalance for f64 {
 // user
 
 #[derive(Debug)]
-pub struct User<'a> {
-    pub first_name: &'a str,
-    pub last_name: &'a str,
-    pub email: &'a str,
+pub struct User {
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
     pub dni: u32, // primary key
     pub identity_validation: bool,
     pub fiat_balance: Balance,
-    pub crypto_balance: HashMap<&'a str, Balance>
+    pub crypto_balance: HashMap<String, Balance>
 }
 
-impl<'a> Hash for User<'a> {
+impl Hash for User {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.first_name.hash(state);
         self.last_name.hash(state);

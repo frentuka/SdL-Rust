@@ -47,9 +47,9 @@ pub enum CategoriaProducto {
     Cosmetico, Tecnologia, HomeDeco, Almacen, Ferreteria, Drogueria, Textil
 }
 
-pub struct Producto<'a> {
-    pub nombre: &'a str,
-    pub apellido: &'a str,
+pub struct Producto {
+    pub nombre: String,
+    pub apellido: String,
     pub categoria: CategoriaProducto,
     pub precio: f32,
 }

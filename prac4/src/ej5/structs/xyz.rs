@@ -61,10 +61,10 @@ use std::collections::{BTreeMap, HashMap};
 use crate::structs::user::{Balance, User};
 use crate::structs::monetary_structs::{Blockchain, BlockchainTransaction, CommonTransactionData, CryptoTransaction, ErrorNewTransaction, FiatTransaction, Quote, TransactionType, WithdrawalMean};
 
-pub struct XYZ<'a> {
-    pub users: BTreeMap<u32, User<'a>>,
-    pub blockchains: BTreeMap<&'a str, Blockchain<'a>>,
-    pub quotes: HashMap<&'a str, Quote> // (buy, sell) prices
+pub struct XYZ {
+    pub users: BTreeMap<u32, User>,
+    pub blockchains: BTreeMap<String, Blockchain>,
+    pub quotes: HashMap<String, Quote> // (buy, sell) prices
 }
 
 //
@@ -72,47 +72,47 @@ pub struct XYZ<'a> {
 //
 
 #[derive(Error)]
-pub enum ErrorFiatDeposit<'a> {
-    FiatTransactionError(ErrorNewTransaction<'a>),
+pub enum ErrorFiatDeposit {
+    FiatTransactionError(ErrorNewTransaction),
     UserNotFound{ user_dni: u32 }
 }
 
 #[derive(Error)]
-pub enum ErrorFiatWithdraw<'a> {
-    FiatTransactionError(ErrorNewTransaction<'a>),
+pub enum ErrorFiatWithdraw {
+    FiatTransactionError(ErrorNewTransaction),
     UserNotFound{ user_dni: u32 },
     NotEnoughBalance{ balance: f64, balance_needed: f64 },
 }
 
 #[derive(Error)]
-pub enum ErrorBlockchainDeposit<'a> {
-    BlockchainTransactionError(ErrorNewTransaction<'a>),
-    BlockchainNotFound{ blockchain: &'a str },
-    CryptoNotQuoted{ crypto: &'a str },
+pub enum ErrorBlockchainDeposit {
+    BlockchainTransactionError(ErrorNewTransaction),
+    BlockchainNotFound{ blockchain: String },
+    CryptoNotQuoted{ crypto: String },
     UserNotFound{ user_dni: u32 },
 }
 
 #[derive(Error)]
-pub enum ErrorBlockchainWithdraw<'a> {
-    BlockchainTransactionError(ErrorNewTransaction<'a>),
-    BlockchainNotFound{ blockchain: &'a str },
-    CryptoNotQuoted{ crypto: &'a str },
+pub enum ErrorBlockchainWithdraw {
+    BlockchainTransactionError(ErrorNewTransaction),
+    BlockchainNotFound{ blockchain: String },
+    CryptoNotQuoted{ crypto: String },
     UserNotFound{ user_dni: u32 },
     NotEnoughBalance{ balance: f64, balance_needed: f64 }
 }
 
 #[derive(Error)]
-pub enum ErrorBuySell<'a> {
-    CryptoTransactionError(ErrorNewTransaction<'a>),
-    CryptocurrencyNotQuoted { crypto_prefix: &'a str },
+pub enum ErrorBuySell {
+    CryptoTransactionError(ErrorNewTransaction),
+    CryptocurrencyNotQuoted { crypto_prefix: String },
     UserNotFound { user_dni: u32 },
     NotEnoughBalance { balance: f64, balance_needed: f64 },
     NegativeAmount,
     Unknown(String)
 }
 
-impl<'a> XYZ<'a> {
-    fn new(users: BTreeMap<u32, User<'a>>, blockchains: BTreeMap<&'a str, Blockchain<'a>>, quotes: HashMap<&'a str, Quote>) -> Self {
+impl XYZ {
+    fn new(users: BTreeMap<u32, User>, blockchains: BTreeMap<String, Blockchain>, quotes: HashMap<String, Quote>) -> Self {
         Self { users, blockchains, quotes }
     }
 
@@ -173,8 +173,8 @@ impl<'a> XYZ<'a> {
     //  de la cripto y desacreditar en el balance de fiat.
     // Luego de ello se registra la transacción con los siguientes datos:
     //      fecha, usuario, criptomoneda, tipo: compra de cripto, monto de cripto y cotización.
-    fn buy_crypto(&mut self, data: CommonTransactionData, crypto_prefix: &'a str)
-                  -> Result<CryptoTransaction<'a>, ErrorBuySell> {
+    fn buy_crypto(&mut self, data: CommonTransactionData, crypto_prefix: &str)
+                  -> Result<CryptoTransaction, ErrorBuySell> {
         // date errors are handled by CryptoTransaction::new()
 
         // check 1: invalid fiat amount
@@ -185,7 +185,7 @@ impl<'a> XYZ<'a> {
         match CryptoTransaction::new(
             data,
             TransactionType::CryptoBuy,
-            crypto_prefix
+            &crypto_prefix
         ) {
 
             Ok(transaction) => {
@@ -196,7 +196,7 @@ impl<'a> XYZ<'a> {
                     if quoting.buy <= 0.0 { return Err(ErrorBuySell::Unknown(format!("${crypto_prefix} is valued at {} FIAT (which is <= 0)", quoting.buy))) }
                     quoting.buy
                 } else {
-                    return Err(ErrorBuySell::CryptocurrencyNotQuoted{ crypto_prefix });
+                    return Err(ErrorBuySell::CryptocurrencyNotQuoted{ crypto_prefix: crypto_prefix.to_string() });
                 };
 
                 let transaction_crypto_amount = data.amount / currency_unitary_value; // .0 -> buy, .1 -> sell
@@ -210,7 +210,7 @@ impl<'a> XYZ<'a> {
 
                     // no error. execute operation
                     user.fiat_balance-= Balance::from(data.amount);
-                    *user.crypto_balance.entry(crypto_prefix).or_insert(Balance::from(0.0))+= Balance::from(transaction_crypto_amount);
+                    *user.crypto_balance.entry(crypto_prefix.to_string()).or_insert(Balance::from(0.0))+= Balance::from(transaction_crypto_amount);
                 } else {
                     return Err(ErrorBuySell::UserNotFound{ user_dni: data.user });
                 };
@@ -227,7 +227,7 @@ impl<'a> XYZ<'a> {
     //  y desacreditar en el balance de la criptomoneda.
     //  Luego de ello se registra la transacción con los siguientes datos:
     //  fecha, usuario, criptomoneda, tipo: venta de cripto, monto de cripto y cotización.
-    fn sell_crypto(&mut self, data: CommonTransactionData, crypto_prefix: &'a str) ->
+    fn sell_crypto(&mut self, data: CommonTransactionData, crypto_prefix: &str) ->
         Result<CryptoTransaction, ErrorBuySell> {
         // date errors are handled by CryptoTransaction::new()
 
@@ -249,7 +249,7 @@ impl<'a> XYZ<'a> {
                     if quoting.sell <= 0.0 { return Err(ErrorBuySell::Unknown(format!("${crypto_prefix} is valued at {} FIAT (which is <= 0)", quoting.sell))) }
                     quoting
                 } else {
-                    return Err(ErrorBuySell::CryptocurrencyNotQuoted{ crypto_prefix });
+                    return Err(ErrorBuySell::CryptocurrencyNotQuoted{ crypto_prefix: crypto_prefix.to_string() });
                 };
 
                 let transaction_fiat_value = currency_value.sell * data.amount;
@@ -284,17 +284,17 @@ impl<'a> XYZ<'a> {
     // (esto hágalo retornando el nombre de la blockchain + un número random).
     // Luego se genera una transacción con los siguientes datos:
     // fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
-    fn withdraw_to_blockchain(&mut self, data: CommonTransactionData, blockchain: &'a str, crypto: &'a str) -> Result<BlockchainTransaction, ErrorBlockchainWithdraw> {
+    fn withdraw_to_blockchain(&mut self, data: CommonTransactionData, blockchain: &str, crypto: &str) -> Result<BlockchainTransaction, ErrorBlockchainWithdraw> {
         // does blockchain exist?
         if !self.blockchains.contains_key(blockchain) {
-            return Err(ErrorBlockchainWithdraw::BlockchainNotFound { blockchain })
+            return Err(ErrorBlockchainWithdraw::BlockchainNotFound { blockchain: blockchain.to_string() })
         };
 
         // does crypto have a quote?
         let quote = if let Some(quote) = self.quotes.get(crypto) {
             quote
         } else {
-            return Err(ErrorBlockchainWithdraw::CryptoNotQuoted { crypto })
+            return Err(ErrorBlockchainWithdraw::CryptoNotQuoted { crypto: crypto.to_string() })
         };
 
         match BlockchainTransaction::new(
@@ -326,17 +326,17 @@ impl<'a> XYZ<'a> {
     // ➢ Recibir criptomoneda de blockchain: dado un monto de una cripto y una blockchain se le acredita
     // al balancede dicha cripto al usuario el monto. Luego se genera una transacción con los siguientes datos:
     // fecha, usuario, tipo: recepción cripto, blockchain, cripto, monto, cotización.
-    fn deposit_from_blockchain(&mut self, data: CommonTransactionData, blockchain: &'a str, crypto: &'a str) -> Result<BlockchainTransaction, ErrorBlockchainDeposit> {
+    fn deposit_from_blockchain(&mut self, data: CommonTransactionData, blockchain: &str, crypto: &str) -> Result<BlockchainTransaction, ErrorBlockchainDeposit> {
         // does blockchain exist?
         if !self.blockchains.contains_key(blockchain) {
-            return Err(ErrorBlockchainDeposit::BlockchainNotFound { blockchain })
+            return Err(ErrorBlockchainDeposit::BlockchainNotFound { blockchain: blockchain.to_string() })
         };
 
         // does crypto have a quote?
         let quote = if let Some(q) = self.quotes.get(crypto) {
             q
         } else {
-            return Err(ErrorBlockchainDeposit::CryptoNotQuoted { crypto })
+            return Err(ErrorBlockchainDeposit::CryptoNotQuoted { crypto: crypto.to_string() })
         };
 
         match BlockchainTransaction::new(
