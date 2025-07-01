@@ -1,0 +1,86 @@
+{
+  "0": {
+    "id": 0,
+    "email": "asd",
+    "medio_de_pago": "Efectivo",
+    "suscripcion_activa": 0,
+    "historial_suscripciones": {
+      "0": {
+        "id": 0,
+        "tipo": "Basic",
+        "costo_mensual": 0.0,
+        "fecha_inicio": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 0
+        }
+      }
+    }
+  },
+  "1": {
+    "id": 1,
+    "email": "asd",
+    "medio_de_pago": {
+      "MercadoPago": 1
+    },
+    "suscripcion_activa": null,
+    "historial_suscripciones": {
+      "1": {
+        "id": 1,
+        "tipo": "Classic",
+        "costo_mensual": 0.0,
+        "fecha_inicio": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 0
+        }
+      },
+      "2": {
+        "id": 2,
+        "tipo": "Super",
+        "costo_mensual": 0.0,
+        "fecha_inicio": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 0
+        }
+      }
+    }
+  },
+  "2": {
+    "id": 2,
+    "email": "asd",
+    "medio_de_pago": {
+      "Debito": 123
+    },
+    "suscripcion_activa": null,
+    "historial_suscripciones": {
+      "3": {
+        "id": 3,
+        "tipo": "Classic",
+        "costo_mensual": 0.0,
+        "fecha_inicio": {
+          "dia": 1,
+          "mes": 1,
+          "ano": 0
+        }
+      }
+    }
+  },
+  "3": {
+    "id": 3,
+    "email": "asd",
+    "medio_de_pago": {
+      "MercadoPago": 1
+    },
+    "suscripcion_activa": null,
+    "historial_suscripciones": {}
+  },
+  "13548": {
+    "id": 13548,
+    "email": "asd",
+    "medio_de_pago": "Efectivo",
+    "suscripcion_activa": null,
+    "historial_suscripciones": {}
+  }
+}
