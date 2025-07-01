@@ -9,8 +9,14 @@
 // Si puede agregar más en caso de que haga métodos nuevos para cumplir con este punto.
 // Recuerde también que se debe seguir manteniendo un coverage de al menos 90%.
 
+// interpretación personal del ejercicio:
+// la estructura debe poder persistir completamente en archivos.
+
 #![deny(clippy::pedantic)]
 #![deny(clippy::perf)]
+#![deny(unused_must_use)]
+
+mod structs;
 
 fn main() {
     println!("Hello, world!");
@@ -20,6 +26,7 @@ fn main() {
 mod tests {
     use super::*;
 
+    #[test]
     fn test_main() {
         main();
     }

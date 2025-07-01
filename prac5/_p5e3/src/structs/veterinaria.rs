@@ -228,7 +228,7 @@ impl<'a> Veterinaria<'a> {
     /// # Notes
     /// Requires `PartialEq` on Atencion for comparison
     pub fn eliminar_atencion (&mut self, nombre_mascota: &'a str, nombre_dueno: &'a str, diagnostico: &'a str) -> ResultRemoverAtencion {
-        if self.atenciones.len() == 0 {
+        if self.atenciones.is_empty() {
             return ResultRemoverAtencion::VectorVacio { capacity: self.atenciones.capacity() }
         }
 

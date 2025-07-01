@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
 const NOMBRE_MESES: [&str; 12] = ["Enero", "Febrero", "Marzo", "Abril",
     "Mayo", "Junio", "Julio", "Agosto",
     "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 pub struct Fecha {
     pub(crate) dia: u8,
     pub(crate) mes: u8,
@@ -78,7 +79,7 @@ impl Fecha {
 
         while dias_restantes > 0 {
             let dias_mes_actual = self.dias_mes_actual();
-            let dias_para_proximo_mes = (dias_mes_actual - self.dia + 1) as u32;
+            let dias_para_proximo_mes = u32::from(dias_mes_actual - self.dia + 1);
 
             if dias_restantes >= dias_para_proximo_mes {
                 // ir al siguiente mes
@@ -92,7 +93,7 @@ impl Fecha {
                     self.ano+= 1;
                 }
             } else {
-                self.dia+= dias_restantes as u8;
+                self.dia += u8::try_from(dias_restantes).unwrap_or(0);
                 dias_restantes = 0;
             }
         }
@@ -102,9 +103,9 @@ impl Fecha {
         let mut dias_restantes = dias;
 
         while dias_restantes > 0 {
-            if dias_restantes >= self.dia as u32 {
+            if dias_restantes >= u32::from(self.dia) {
                 // ir al anterior mes
-                dias_restantes-= self.dia as u32;
+                dias_restantes-= u32::from(self.dia);
                 self.mes-= 1;
 
                 if self.mes < 1 {
@@ -115,7 +116,7 @@ impl Fecha {
                 // corregir self.dia == 0
                 self.dia = self.dias_mes_actual();
             } else {
-                self.dia-= dias_restantes as u8;
+                self.dia-= u8::try_from(dias_restantes).unwrap_or(0);
                 dias_restantes = 0;
             }
         }
@@ -127,5 +128,120 @@ impl Fecha {
             2 => if self.es_bisiesto() { 29 } else { 28 },
             _ => 31,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_default() {
+        // default: 01/01/0000
+        let default_fecha = Fecha::default();
+        assert_eq!(default_fecha.dia, 1);
+        assert_eq!(default_fecha.mes, 1);
+        assert_eq!(default_fecha.ano, 0);
+    }
+
+    #[test]
+    fn test_display() {
+        let valid_fecha = Fecha::default();
+        let invalid_fecha = Fecha { dia: 0, mes: 1, ano: 0 };
+
+        // write!(f, "{} de {} del {}", self.dia, NOMBRE_MESES[self.mes as usize - 1], self.ano)
+
+        assert_ne!(format!("{valid_fecha}"), format!("{}", invalid_fecha));
+        assert_eq!(format!("{valid_fecha}"), format!("{} de {} del {}", valid_fecha.dia, NOMBRE_MESES[valid_fecha.mes as usize - 1], valid_fecha.ano));
+        assert_eq!(format!("{invalid_fecha}"), format!("{}/{}/{}", invalid_fecha.dia, invalid_fecha.mes, invalid_fecha.ano));
+    }
+
+    #[test]
+    fn test_new() {
+        // invalida
+        let fecha = Fecha::new(0, 0, 0);
+        assert!(fecha.is_none());
+
+        // valida
+        let fecha = Fecha::new(22, 08, 2002);
+        assert!(fecha.is_some());
+    }
+
+    #[test]
+    fn test_bisiesto() {
+        let Some(fecha) = Fecha::new(1, 1, 0) else { panic!() };
+        assert!(fecha.es_bisiesto());
+
+        let Some(fecha) = Fecha::new(1, 1, 2000) else { panic!() };
+        assert!(fecha.es_bisiesto());
+
+        let Some(fecha) = Fecha::new(1, 1, -4) else { panic!() };
+        assert!(fecha.es_bisiesto());
+
+        let Some(fecha) = Fecha::new(1, 1, 1) else { panic!() };
+        assert!(!fecha.es_bisiesto());
+    }
+
+    #[test]
+    fn test_restar_dias() {
+        let Some(mut fecha) = Fecha::new(30, 04, 2016) else { panic!() };
+
+        fecha.restar_dias(5000);
+
+        assert_eq!(fecha.dia, 22);
+        assert_eq!(fecha.mes, 08);
+        assert_eq!(fecha.ano, 2002);
+    }
+
+    #[test]
+    fn test_sumar_dias() {
+        let Some(mut fecha) = Fecha::new(22, 08, 2002) else { panic!() };
+
+        fecha.sumar_dias(5000);
+
+        assert_eq!(fecha.dia, 30);
+        assert_eq!(fecha.mes, 04);
+        assert_eq!(fecha.ano, 2016);
+    }
+
+    #[test]
+    fn test_dias_mes_actual() {
+        let Some(fecha) = Fecha::new(22, 01, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 31);
+        let Some(fecha) = Fecha::new(22, 02, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 28);
+        let Some(fecha) = Fecha::new(22, 02, 2004) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 29);
+        let Some(fecha) = Fecha::new(22, 03, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 31);
+        let Some(fecha) = Fecha::new(22, 04, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 30);
+        let Some(fecha) = Fecha::new(22, 05, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 31);
+        let Some(fecha) = Fecha::new(22, 06, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 30);
+        let Some(fecha) = Fecha::new(22, 07, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 31);
+        let Some(fecha) = Fecha::new(22, 08, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 31);
+        let Some(fecha) = Fecha::new(22, 09, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 30);
+        let Some(fecha) = Fecha::new(22, 10, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 31);
+        let Some(fecha) = Fecha::new(22, 11, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 30);
+        let Some(fecha) = Fecha::new(22, 12, 2002) else { panic!() };
+        assert_eq!(fecha.dias_mes_actual(), 31);
+    }
+
+    #[test]
+    fn test_cmp() {
+        let fecha1 = Fecha { dia: 1, mes: 1, ano: 1};
+        let fecha2 = Fecha { dia: 3, mes: 1, ano: 1};
+        let fecha3 = Fecha { dia: 3, mes: 1, ano: 1};
+        
+        assert!(fecha1 < fecha2, "Fecha 1 es anterior, por ende, es menor");
+        assert_eq!(fecha3, fecha2, "Fecha 3 es igual a fecha 2");
+        assert!(fecha3 > fecha1, "Fecha 3 es posterior a fecha1, por ende, es mayor");
     }
 }
