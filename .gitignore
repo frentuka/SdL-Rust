@@ -2,3 +2,9 @@
 /*/target
 /*/*/target
 /*/*/res
+
+/tarpaulin-report.html
+/*/tarpaulin*
+/*/*/tarpaulin*
+
+/prac5/*/tarpaulin-report.html

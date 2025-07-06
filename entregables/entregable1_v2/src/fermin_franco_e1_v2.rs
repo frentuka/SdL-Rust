@@ -207,7 +207,7 @@ fn main() { }
 
 #[cfg(test)]
 mod test {
-    use crate::{Estudiante, Examen};
+    use super::*;
 
     fn estudiante() -> Estudiante {
         let examen1 = Examen::new("SdL Rust".to_string(), 4.0);
