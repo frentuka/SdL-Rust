@@ -10,7 +10,8 @@
 
 #![deny(clippy::pedantic)]
 
-mod structs;
+// mod structs;
+mod p5e4;
 
 fn main() {}
 

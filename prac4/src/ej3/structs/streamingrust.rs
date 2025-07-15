@@ -22,46 +22,9 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use crate::structs::suscripcion::TipoSuscripcion;
 use crate::structs::usuario::Usuario;
 
-// contienen la información necesaria para identificar la compra
-//         mercadopago: cvu
-//         credito: cbu, cuotas
-//         debito: cbu
-//         transferencia: cbu
-//         cripto: public key/wallet address
-//         combinación: set de cualquiera de las anteriores
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum MedioDePago {
-    Efectivo,
-    MercadoPago(u128),
-    Credito(u128, u8),
-    Debito(u128),
-    Transferencia(u128),
-    Cripto([u8; 65])
-}
 
-impl MedioDePago {
-    fn id(&self) -> u8 {
-        match self {
-            MedioDePago::Efectivo => 0,
-            MedioDePago::MercadoPago(_) => 1,
-            MedioDePago::Credito(_, _) => 2,
-            MedioDePago::Debito(_) => 3,
-            MedioDePago::Transferencia(_) => 4,
-            MedioDePago::Cripto(_) => 5,
-        }
-    }
 
-    fn from_id(id: u8) -> MedioDePago {
-        match id {
-            0 | 6..=u8::MAX => MedioDePago::Efectivo,
-            1 => MedioDePago::MercadoPago(0),
-            2 => MedioDePago::Credito(0, 0),
-            3 => MedioDePago::Debito(0),
-            4 => MedioDePago::Transferencia(0),
-            5 => MedioDePago::Cripto([0; 65])
-        }
-    }
-}
+
 
 struct StreamingRust {
     usuarios: BTreeMap<u64, Usuario>

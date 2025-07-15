@@ -72,7 +72,7 @@ impl PartialEq for ErrorLeerArchivo {
     }
 }
 
-const BASE_FOLDER: &str = "R:/appcrap/RustRover/SdL-Rust/prac5/_p5e4/res/";
+const BASE_FOLDER: &str = "";
 const FILE_NAME_FORMAT: &str = "{}_{}.json"; // {biblioteca.nombre}_{libros/prestamos}.json
 const LIBROS_FILENAME: &str = "libros";
 const CLIENTES_FILENAME: &str = "clientes";

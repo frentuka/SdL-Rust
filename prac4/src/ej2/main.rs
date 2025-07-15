@@ -112,3 +112,99 @@ impl VecPersona for Vec<Persona> {
 }
 
 fn main() { }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_a_personas_salario_mayor() {
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 },
+            Persona { nombre: "Bob".to_string(), apellido: "Johnson".to_string(), direccion: "456 Elm St".to_string(), ciudad: "Shelbyville".to_string(), salario: 60000.0, edad: 40 },
+        ];
+        let result = personas.a_personas_salario_mayor(55000.0);
+        assert_eq!(result, Some(vec![&personas[1]]));
+
+        let result = personas.a_personas_salario_mayor(-1.0);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_b_personas_mayores_edad_en_ciudad() {
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 },
+            Persona { nombre: "Bob".to_string(), apellido: "Johnson".to_string(), direccion: "456 Elm St".to_string(), ciudad: "Springfield".to_string(), salario: 60000.0, edad: 40 },
+        ];
+        let result = personas.b_personas_mayores_edad_en_ciudad("Springfield", 35);
+        assert_eq!(result, vec![&personas[1]]);
+    }
+
+    #[test]
+    fn test_c_todos_viven_en_ciudad() {
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 },
+            Persona { nombre: "Bob".to_string(), apellido: "Johnson".to_string(), direccion: "456 Elm St".to_string(), ciudad: "Springfield".to_string(), salario: 60000.0, edad: 40 },
+        ];
+        assert!(personas.c_todos_viven_en_ciudad("Springfield"));
+        assert!(!personas.c_todos_viven_en_ciudad("Shelbyville"));
+    }
+
+    #[test]
+    fn test_d_alguien_vive_en_ciudad() {
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 },
+            Persona { nombre: "Bob".to_string(), apellido: "Johnson".to_string(), direccion: "456 Elm St".to_string(), ciudad: "Shelbyville".to_string(), salario: 60000.0, edad: 40 },
+        ];
+
+        assert!(personas.d_alguien_vive_en_ciudad("Springfield"));
+        assert!(personas.d_alguien_vive_en_ciudad("Shelbyville"));
+        assert!(!personas.d_alguien_vive_en_ciudad("Unknown City"));
+    }
+
+    #[test]
+    fn test_e_persona_existe() {
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 },
+            Persona { nombre: "Bob".to_string(), apellido: "Johnson".to_string(), direccion: "456 Elm St".to_string(), ciudad: "Shelbyville".to_string(), salario: 60000.0, edad: 40 },
+        ];
+
+        let persona_existente = Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 };
+        let persona_no_existente = Persona { nombre: "Charlie".to_string(), apellido: "Brown".to_string(), direccion: "789 Oak St".to_string(), ciudad: "Springfield".to_string(), salario: 70000.0, edad: 35 };
+
+        assert!(personas.e_persona_existe(&persona_existente));
+        assert!(!personas.e_persona_existe(&persona_no_existente));
+    }
+
+    #[test]
+    fn test_f_listar_edades() {
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 },
+            Persona { nombre: "Bob".to_string(), apellido: "Johnson".to_string(), direccion: "456 Elm St".to_string(), ciudad: "Shelbyville".to_string(), salario: 60000.0, edad: 40 },
+        ];
+
+        let edades = personas.f_listar_edades();
+        assert_eq!(edades, vec![30, 40]);
+    }
+
+    #[test]
+    fn test_g_mayor_menor_salario() {
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 },
+            Persona { nombre: "Bob".to_string(), apellido: "Johnson".to_string(), direccion: "456 Elm St".to_string(), ciudad: "Shelbyville".to_string(), salario: 60000.0, edad: 40 },
+            Persona { nombre: "Charlie".to_string(), apellido: "Brown".to_string(), direccion: "789 Oak St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 35 },
+        ];
+
+        let result = personas.g_mayor_menor_salario();
+        assert!(result.is_some());
+        let (menor, mayor) = result.unwrap();
+        assert_eq!(menor.salario, 50000.0);
+        assert_eq!(mayor.salario, 60000.0);
+
+        let personas = vec![
+            Persona { nombre: "Alice".to_string(), apellido: "Smith".to_string(), direccion: "123 Main St".to_string(), ciudad: "Springfield".to_string(), salario: 50000.0, edad: 30 }
+        ];
+
+        assert_eq!(personas.g_mayor_menor_salario(), None);
+    }
+}

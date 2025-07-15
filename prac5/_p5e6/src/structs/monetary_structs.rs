@@ -221,5 +221,61 @@ impl CryptoTransaction {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
+    #[test]
+    fn test_new_blockchain() {
+        let blockchain = Blockchain::new("Ethereum", "ETH", vec!["ETH".to_string(), "USDT".to_string()]);
+
+        assert_eq!(blockchain.name, "Ethereum");
+        assert_eq!(blockchain.prefix, "ETH");
+        assert_eq!(blockchain.supported_cryptos, vec!["ETH".to_string(), "USDT".to_string()]);
+    }
+
+    #[test]
+    fn test_blockchain_withdraw() {
+        let blockchain = Blockchain::new("Ethereum", "ETH", vec!["ETH".to_string(), "USDT".to_string()]);
+
+        let data = CommonTransactionData {
+            date: Date::new(2, 10, 1).unwrap(),
+            user: 1,
+            amount: 100.0,
+            transaction_type: TransactionType::BlockchainWithdrawal
+        };
+
+        let quote = Quote { buy: 2000.0, sell: 1900.0 };
+
+        let transaction = blockchain.withdraw(data, "ETH", quote.clone()).unwrap();
+
+        assert_eq!(transaction.blockchain, "Ethereum");
+        assert_eq!(transaction.crypto, "ETH");
+        assert_eq!(transaction.quote, quote);
+    }
+
+    #[test]
+    fn test_transactiontype_display_impl() {
+        let withdrawal = TransactionType::FiatWithdrawal { mean: WithdrawalMean::BankTansfer };
+        let withdrawal_str = format!("{}", withdrawal);
+        assert_eq!(withdrawal_str, "Fiat Withdrawal via BankTansfer");
+
+        let deposit = TransactionType::FiatDeposit;
+        let deposit_str = format!("{}", deposit);
+        assert_eq!(deposit_str, "Fiat Deposit");
+
+        let blockchain_deposit = TransactionType::BlockchainDeposit;
+        let blockchain_deposit_str = format!("{}", blockchain_deposit);
+        assert_eq!(blockchain_deposit_str, "Blockchain Deposit");
+
+        let blockchain_withdrawal = TransactionType::BlockchainWithdrawal;
+        let blockchain_withdrawal_str = format!("{}", blockchain_withdrawal);
+        assert_eq!(blockchain_withdrawal_str, "Blockchain Withdrawal");
+
+        let crypto_buy = TransactionType::CryptoBuy;
+        let crypto_buy_str = format!("{}", crypto_buy);
+        assert_eq!(crypto_buy_str, "Crypto Buy");
+
+        let crypto_sell = TransactionType::CryptoSell;
+        let crypto_sell_str = format!("{}", crypto_sell);
+        assert_eq!(crypto_sell_str, "Crypto Sell");
+    }
 }

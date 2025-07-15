@@ -16,7 +16,8 @@
 #![deny(clippy::perf)]
 #![deny(unused_must_use)]
 
-mod structs;
+// mod structs;
+mod p5e5;
 
 fn main() {
     println!("Hello, world!");

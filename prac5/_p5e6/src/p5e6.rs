@@ -1,69 +1,619 @@
-/*
-5- La empresa XYZ es una plataforma de intercambio de criptoactivos
-que permite a los usuarios comprar y vender distintas criptomonedas.
 
-La plataforma permite el registro de usuarios y la gestión de sus balances
-en distintas criptomonedas y en dinero fíat.
-De los usuarios se conoce:
-nombre, apellido, email, dni, y si está validada su identidad o no.
 
-Cada usuario tiene un balance de las criptomonedas que se ofrecen en la plataforma.
-De las criptomonedas se conoce:
-nombre, prefijo y un listado de blockchains donde se pueden enviar o recibir.
-De cada blockchain se conoce el nombre, prefijo.
 
-Implemente las estructuras, funciones asociadas y traits necesarios
-para resolver las siguientes acciones relacionadas al usuario:
+//
+// date.rs
+//
 
-➢ Ingresar dinero: se recibe un monto en fiat de un usuario
-y se acredita al balance de fiat de dicho usuario. Además se crea una transacción del hecho donde los datos que se guardan son:fecha, tipo(ingreso de dinero), monto, usuario.
-
-➢ Comprar determinada criptomoneda: dado un monto de fiat se compra una cantidad de determinada criptomoneda,
-tenga en cuenta que al momento de realizar la operación se obtiene del sistema la cotización actual de la criptomoneda para acreditar la correspondiente proporción en el balance de la cripto y desacreditar en el balance de fiat. Luego de ello se registra la transacción con los siguientes datos: fecha, usuario, criptomoneda, tipo: compra de cripto, monto de cripto y cotización.
-
-➢ Vender determinada criptomoneda: dado un monto de cripto se vende por fiat,
-tenga en cuenta que al momento de realizar la operación se obtiene del sistema la cotización actual
-de la criptomoneda para acreditar la correspondiente proporción en el balance de fiat
-y desacreditar en el balance de la criptomoneda.
-Luego de ello se registra la transacción con los siguientes datos:
-fecha, usuario, criptomoneda, tipo: venta de cripto, monto de cripto y cotización.
-
-➢ Retirar criptomoneda a blockchain: dado un monto de una cripto y una blockchain
-se le descuenta del balance de dicha cripto al usuario el monto,
-la blockchain devuelve un hash que representa una transacción en ella
-(esto hágalo retornando el nombre de la blockchain + un número random).
-Luego se genera una transacción con los siguientes datos:
-fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
-
-➢ Recibir criptomoneda de blockchain: dado un monto de una cripto y una blockchain se le acredita
-al balancede dicha cripto al usuario el monto. Luego se genera una transacción con los siguientes datos:
-fecha, usuario, tipo: recepción cripto, blockchain, cripto, monto, cotización.
-
-➢ Retirar fiat por determinado medio: dado un monto de fiat se le descuenta dicho monto del balance
-al usuario y se genera una transacción con la siguiente información:
-fecha, usuario, tipo: retiro fiat, monto y medio (puede ser MercadoPago o Transferencia Bancaria)
-
-Nota:: Tanto para comprar. vender, retirar el usuario debe estar validado.
-Se debe validar siempre que haya balance suficiente para realizar la operación
-en los casos de compra, venta, retiro.
-
-Además la empresa desea saber lo siguiente en base a sus operaciones:
-
-➢ Saber cual es la criptomoneda que más cantidad de ventas tiene
-➢ Saber cual es la criptomoneda que más cantidad de compras tiene
-➢ Saber cual es la criptomoneda que más volumen de ventas tiene
-➢ Saber cual es la criptomoneda que más volumen de compras tiene
-
-*/
-use error_proc_macro::Error;
+use std::cmp::Ordering;
+use std::cmp::Ordering::{Equal, Greater, Less};
 use std::collections::{BTreeMap, HashMap};
-use std::fs;
+use std::{fmt, fs};
+use std::fmt::Formatter;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::Read;
+use std::ops::{AddAssign, SubAssign};
 use serde::{Deserialize, Serialize};
-use crate::structs::date::Date;
-use crate::structs::user::{Balance, User};
-use crate::structs::monetary_structs::{Blockchain, BlockchainTransaction, CommonTransactionData, CryptoTransaction, ErrorNewTransaction, FiatTransaction, Quote, TransactionType, WithdrawalMean};
+
+const NOMBRE_MESES: [&str; 12] = ["Enero", "Febrero", "Marzo", "Abril",
+    "Mayo", "Junio", "Julio", "Agosto",
+    "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Copy, Hash)]
+pub struct Date {
+    pub(crate) day: u8,
+    pub(crate) month: u8,
+    pub(crate) year: i64
+}
+
+impl Default for Date {
+    fn default() -> Self {
+        Date { day: 1, month: 1, year: 0 }
+    }
+}
+
+impl PartialOrd for Date {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.day == other.day
+            && self.month == other.month
+            && self.year == other.year
+        { return Some(Equal) }
+
+        if self.year > other.year { return Some(Greater) }
+        if self.month > other.month { return Some(Greater) }
+        if self.day > other.day { return Some(Greater) }
+
+        Some(Less)
+    }
+}
+
+impl fmt::Display for Date {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_date_valid() {
+            write!(f, "{} de {} del {}", self.day, NOMBRE_MESES[self.month as usize - 1], self.year)
+        } else {
+            write!(f, "{}/{}/{}", self.day, self.month, self.year)
+        }
+    }
+}
+
+impl Date {
+    // El año podría ser negativo, indicando época antes de Cristo.
+    pub fn new(dia: u8, mes: u8, ano: i64) -> Option<Date> {
+        let fecha = Date { day: dia, month: mes, year: ano };
+        if fecha.is_date_valid() {
+            return Some(fecha);
+        }
+        None
+    }
+
+    pub fn is_date_valid(&self) -> bool {
+        // check que el mes sea válido
+        if !(1..=12).contains(&self.month) { return false }
+
+        // check días del mes
+        if self.day == 0
+            || self.day > self.current_month_days()
+        { return false }
+
+        // el año no puede ser incorrecto...
+        // a no ser que se contabilice la edad del universo
+        // que dudo mucho que pueda importar para este caso
+        true
+    }
+
+    pub fn is_leap_year(&self) -> bool {
+        self.year % 4 == 0
+    }
+
+    pub fn add_days(&mut self, dias: u32) {
+        let mut dias_restantes = dias;
+
+        while dias_restantes > 0 {
+            let dias_mes_actual = self.current_month_days();
+            let dias_para_proximo_mes = u32::from(dias_mes_actual - self.day + 1);
+
+            if dias_restantes >= dias_para_proximo_mes {
+                // ir al siguiente mes
+
+                dias_restantes-= dias_para_proximo_mes;
+                self.day = 1;
+                self.month += 1;
+
+                if self.month > 12 {
+                    self.month = 1;
+                    self.year += 1;
+                }
+            } else {
+                self.day += u8::try_from(dias_restantes).unwrap();
+                dias_restantes = 0;
+            }
+        }
+    }
+
+    pub fn subtract_days(&mut self, dias: u32) {
+        let mut dias_restantes = dias;
+
+        while dias_restantes > 0 {
+            if dias_restantes >= u32::from(self.day) {
+                // ir al anterior mes
+                dias_restantes-= u32::from(self.day);
+                self.month -= 1;
+
+                if self.month < 1 {
+                    self.month = 12;
+                    self.year -= 1;
+                }
+
+                // corregir self.dia == 0
+                self.day = self.current_month_days();
+            } else {
+                self.day -= u8::try_from(dias_restantes).unwrap();
+                dias_restantes = 0;
+            }
+        }
+    }
+
+    pub fn current_month_days(&self) -> u8 {
+        match self.month {
+            4 | 6 | 9 | 11 => 30,
+            2 => if self.is_leap_year() { 29 } else { 28 },
+            _ => 31,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_date {
+    use super::*;
+
+    #[test]
+    fn test_default() {
+        // default: 01/01/0000
+        let default_fecha = Date::default();
+        assert_eq!(default_fecha.day, 1);
+        assert_eq!(default_fecha.month, 1);
+        assert_eq!(default_fecha.year, 0);
+    }
+
+    #[test]
+    fn test_display() {
+        let valid_fecha = Date::default();
+        let invalid_fecha = Date { day: 0, month: 1, year: 0 };
+
+        // write!(f, "{} de {} del {}", self.dia, NOMBRE_MESES[self.mes as usize - 1], self.ano)
+
+        assert_ne!(format!("{valid_fecha}"), format!("{}", invalid_fecha));
+        assert_eq!(format!("{valid_fecha}"), format!("{} de {} del {}", valid_fecha.day, NOMBRE_MESES[valid_fecha.month as usize - 1], valid_fecha.year));
+        assert_eq!(format!("{invalid_fecha}"), format!("{}/{}/{}", invalid_fecha.day, invalid_fecha.month, invalid_fecha.year));
+    }
+
+    #[test]
+    fn test_new() {
+        // invalida
+        let fecha = Date::new(0, 0, 0);
+        assert!(fecha.is_none());
+
+        // valida
+        let fecha = Date::new(22, 08, 2002);
+        assert!(fecha.is_some());
+    }
+
+    #[test]
+    fn test_bisiesto() {
+        let Some(fecha) = Date::new(1, 1, 0) else { panic!() };
+        assert!(fecha.is_leap_year());
+
+        let Some(fecha) = Date::new(1, 1, 2000) else { panic!() };
+        assert!(fecha.is_leap_year());
+
+        let Some(fecha) = Date::new(1, 1, -4) else { panic!() };
+        assert!(fecha.is_leap_year());
+
+        let Some(fecha) = Date::new(1, 1, 1) else { panic!() };
+        assert!(!fecha.is_leap_year());
+    }
+
+    #[test]
+    fn test_restar_dias() {
+        let Some(mut fecha) = Date::new(30, 04, 2016) else { panic!() };
+
+        fecha.subtract_days(5000);
+
+        assert_eq!(fecha.day, 22);
+        assert_eq!(fecha.month, 08);
+        assert_eq!(fecha.year, 2002);
+    }
+
+    #[test]
+    fn test_sumar_dias() {
+        let Some(mut fecha) = Date::new(22, 08, 2002) else { panic!() };
+
+        fecha.add_days(5000);
+
+        assert_eq!(fecha.day, 30);
+        assert_eq!(fecha.month, 04);
+        assert_eq!(fecha.year, 2016);
+    }
+
+    #[test]
+    fn test_current_month_days() {
+        let Some(fecha) = Date::new(22, 01, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 31);
+        let Some(fecha) = Date::new(22, 02, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 28);
+        let Some(fecha) = Date::new(22, 02, 2004) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 29);
+        let Some(fecha) = Date::new(22, 03, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 31);
+        let Some(fecha) = Date::new(22, 04, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 30);
+        let Some(fecha) = Date::new(22, 05, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 31);
+        let Some(fecha) = Date::new(22, 06, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 30);
+        let Some(fecha) = Date::new(22, 07, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 31);
+        let Some(fecha) = Date::new(22, 08, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 31);
+        let Some(fecha) = Date::new(22, 09, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 30);
+        let Some(fecha) = Date::new(22, 10, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 31);
+        let Some(fecha) = Date::new(22, 11, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 30);
+        let Some(fecha) = Date::new(22, 12, 2002) else { panic!() };
+        assert_eq!(fecha.current_month_days(), 31);
+    }
+
+    #[test]
+    fn test_cmp() {
+        let fecha1 = Date { day: 1, month: 1, year: 1};
+        let fecha2 = Date { day: 3, month: 1, year: 1};
+        let fecha3 = Date { day: 3, month: 1, year: 1};
+
+        assert!(fecha1 < fecha2, "Fecha 1 es anterior, por ende, es menor");
+        assert_eq!(fecha3, fecha2, "Fecha 3 es igual a fecha 2");
+        assert!(fecha3 > fecha1, "Fecha 3 es posterior a fecha1, por ende, es mayor");
+    }
+}
+
+//
+// monetary_structs.rs
+//
+
+#[derive(Debug, PartialEq)]
+pub struct BlockchainTransactionHash(String);
+impl BlockchainTransactionHash {
+    fn new(prefix: &str) -> BlockchainTransactionHash {
+        BlockchainTransactionHash(format!("{}-{}", prefix, rand::random::<u32>()))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct BlockchainTransaction {
+    pub data: CommonTransactionData,
+    pub blockchain: String,
+    pub hash: BlockchainTransactionHash,
+    pub crypto: String,
+    pub quote: Quote
+}
+
+impl BlockchainTransaction {
+    pub fn new(data: CommonTransactionData, blockchain: &str, hash: Option<BlockchainTransactionHash>, crypto: &str, quote: Quote) -> Result<Self, ErrorNewTransaction> {
+        // invalid date
+        if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
+
+        // invalid amount
+        if data.amount < 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount { amount: data.amount }) }
+
+        // invalid transaction type
+        if data.transaction_type != TransactionType::BlockchainWithdrawal
+            && data.transaction_type != TransactionType::BlockchainDeposit
+        { return Err(ErrorNewTransaction::InvalidTransactionType { transaction_type: data.transaction_type }) }
+
+        // unwrap or create
+        let hash = if let Some(val) = hash { val }
+        else { BlockchainTransactionHash::new(&blockchain) };
+
+        Ok(Self {
+            data,
+            blockchain: blockchain.to_string(),
+            hash,
+            crypto: crypto.to_string(),
+            quote
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct Blockchain {
+    pub name: String,
+    pub prefix: String,
+    pub supported_cryptos: Vec<String>,
+}
+
+impl Blockchain {
+    fn new(name: &str, prefix: &str, supported_cryptos: Vec<String>) -> Self {
+        Blockchain { name: name.to_string(), prefix: prefix.to_string(), supported_cryptos }
+    }
+
+    // ➢ Retirar criptomoneda a blockchain: dado un monto de una cripto y una blockchain
+    // se le descuenta del balance de dicha cripto al usuario el monto,
+    // la blockchain devuelve un hash que representa una transacción en ella
+    // (esto hágalo retornando el nombre de la blockchain + un número random).
+    // Luego se genera una transacción con los siguientes datos:
+    // fecha, usuario, tipo: retiro cripto, blockchain, hash, cripto, monto, cotización.
+
+    fn withdraw(&self, data: CommonTransactionData, crypto: &str, quote: Quote) -> Result<BlockchainTransaction, ErrorNewTransaction> {
+        if !self.supported_cryptos.contains(&crypto.to_string()) {
+            return Err(ErrorNewTransaction::CryptoNotSupportedByBlockchain { crypto: crypto.to_string(), blockchain: self.name.clone() })
+        }
+
+        // all other checks are made by BlockchainTransaction::new()
+        BlockchainTransaction::new(
+            data,
+            self.name.as_str(),
+            None, // hash
+            crypto,
+            quote
+        )
+    }
+}
+
+//     Cada usuario tiene un balance de las criptomonedas que se ofrecen en la plataforma.
+//     De las criptomonedas se conoce:
+//         nombre, prefijo y un listado de blockchains donde se pueden enviar o recibir.
+//     De cada blockchain se conoce el nombre, prefijo.
+
+pub enum ErrorNewCryptocurrency {
+    MustHaveABlockchain
+}
+
+// Quote
+// I could use a tuple instead of a whole struct,
+// but I want to enforce compile-time names for values
+// as it's not intuitive that .0 is the BUY value and .1 the SELL value
+// quote must be copied,
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Quote {
+    pub buy: f64,
+    pub sell: f64
+}
+
+// CommonTransactionData
+// It's only purpose is to prevent having too many arguments.
+// It's only supposed to have data which all transactions need.
+// TransctionType could also be set here, but that would imply that user must set the transaction type
+// and I prefer transaction types to be hard-coded.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct CommonTransactionData {
+    pub date: Date,
+    pub user: u32,
+    pub amount: f64,
+    pub transaction_type: TransactionType,
+}
+
+// ➢ Ingresar dinero: se recibe un monto en fiat de un usuario
+//     y se acredita al balance de fiat de dicho usuario. Además se crea una transacción del hecho
+//      donde los datos que se guardan son:fecha, tipo(ingreso de dinero), monto, usuario.
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ErrorNewTransaction {
+    InvalidDate,
+    InvalidInputAmount{ amount: f64 },
+    InvalidTransactionType { transaction_type: TransactionType },
+    BlockchainNotDeclared,
+    CryptoNotSupportedByBlockchain { crypto: String, blockchain: String },
+    FiatWithdrawalNeedsMean
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Copy)]
+pub enum WithdrawalMean {
+    BankTansfer, MercadoPago
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Copy)]
+pub enum TransactionType {
+    FiatDeposit,
+    FiatWithdrawal { mean: WithdrawalMean },
+    BlockchainDeposit,
+    BlockchainWithdrawal,
+    CryptoBuy,
+    CryptoSell
+}
+
+impl fmt::Display for TransactionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            TransactionType::FiatDeposit => write!(f, "Fiat Deposit"),
+            TransactionType::FiatWithdrawal { mean } => write!(f, "Fiat Withdrawal via {mean:?}"),
+            TransactionType::BlockchainDeposit => write!(f, "Blockchain Deposit"),
+            TransactionType::BlockchainWithdrawal => write!(f, "Blockchain Withdrawal"),
+            TransactionType::CryptoBuy => write!(f, "Crypto Buy"),
+            TransactionType::CryptoSell => write!(f, "Crypto Sell"),
+        }
+    }
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub struct FiatTransaction {
+    pub data: CommonTransactionData,
+}
+
+// all FIAT transfers will be treated as Argentine Peso transfers
+
+impl FiatTransaction {
+    pub fn new(data: CommonTransactionData) -> Result<Self, ErrorNewTransaction> {
+        match data.transaction_type {
+            TransactionType::FiatDeposit | TransactionType::FiatWithdrawal { .. } => (),
+            _ => return Err(ErrorNewTransaction::InvalidTransactionType { transaction_type: data.transaction_type })
+        }
+
+        if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
+        if data.amount <= 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount{ amount: data.amount }) }
+
+        // user verifications must be done service-side
+
+        Ok(FiatTransaction {
+            data
+        })
+    }
+}
+
+//
+// Crypto Transaction
+//
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct CryptoTransaction {
+    pub data: CommonTransactionData,
+    pub currency: String,
+}
+
+// all FIAT transfers will all be treated as Argentine Peso transfers
+
+impl CryptoTransaction {
+    pub fn new(data: CommonTransactionData, currency: &str) -> Result<Self, ErrorNewTransaction> {
+        if !data.date.is_date_valid() { return Err(ErrorNewTransaction::InvalidDate) }
+        if data.amount < 0.0 { return Err(ErrorNewTransaction::InvalidInputAmount{ amount: data.amount }) }
+
+        match data.transaction_type {
+            TransactionType::CryptoBuy | TransactionType::CryptoSell => (),
+            _ => { return Err(ErrorNewTransaction::InvalidTransactionType { transaction_type: data.transaction_type }) }
+        }
+
+        // blockchain, currency, user_from, user_to verifications must be done service-side
+
+        Ok(CryptoTransaction {
+            data, currency: currency.to_string()
+        })
+    }
+}
+
+#[cfg(test)]
+mod test_monetary_structs {
+    use super::*;
+
+    #[test]
+    fn test_new_blockchain() {
+        let blockchain = Blockchain::new("Ethereum", "ETH", vec!["ETH".to_string(), "USDT".to_string()]);
+
+        assert_eq!(blockchain.name, "Ethereum");
+        assert_eq!(blockchain.prefix, "ETH");
+        assert_eq!(blockchain.supported_cryptos, vec!["ETH".to_string(), "USDT".to_string()]);
+    }
+
+    #[test]
+    fn test_blockchain_withdraw() {
+        let blockchain = Blockchain::new("Ethereum", "ETH", vec!["ETH".to_string(), "USDT".to_string()]);
+
+        let data = CommonTransactionData {
+            date: Date::new(2, 10, 1).unwrap(),
+            user: 1,
+            amount: 100.0,
+            transaction_type: TransactionType::BlockchainWithdrawal
+        };
+
+        let quote = Quote { buy: 2000.0, sell: 1900.0 };
+
+        let transaction = blockchain.withdraw(data, "ETH", quote.clone()).unwrap();
+
+        assert_eq!(transaction.blockchain, "Ethereum");
+        assert_eq!(transaction.crypto, "ETH");
+        assert_eq!(transaction.quote, quote);
+    }
+
+    #[test]
+    fn test_transactiontype_display_impl() {
+        let withdrawal = TransactionType::FiatWithdrawal { mean: WithdrawalMean::BankTansfer };
+        let withdrawal_str = format!("{}", withdrawal);
+        assert_eq!(withdrawal_str, "Fiat Withdrawal via BankTansfer");
+
+        let deposit = TransactionType::FiatDeposit;
+        let deposit_str = format!("{}", deposit);
+        assert_eq!(deposit_str, "Fiat Deposit");
+
+        let blockchain_deposit = TransactionType::BlockchainDeposit;
+        let blockchain_deposit_str = format!("{}", blockchain_deposit);
+        assert_eq!(blockchain_deposit_str, "Blockchain Deposit");
+
+        let blockchain_withdrawal = TransactionType::BlockchainWithdrawal;
+        let blockchain_withdrawal_str = format!("{}", blockchain_withdrawal);
+        assert_eq!(blockchain_withdrawal_str, "Blockchain Withdrawal");
+
+        let crypto_buy = TransactionType::CryptoBuy;
+        let crypto_buy_str = format!("{}", crypto_buy);
+        assert_eq!(crypto_buy_str, "Crypto Buy");
+
+        let crypto_sell = TransactionType::CryptoSell;
+        let crypto_sell_str = format!("{}", crypto_sell);
+        assert_eq!(crypto_sell_str, "Crypto Sell");
+    }
+}
+
+//
+// user.rs
+//
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone, Copy)]
+pub struct Balance(pub f64);
+
+impl Balance {
+    pub fn new(balance: f64) -> Self {
+        Balance(balance)
+    }
+    pub fn add_assign_f64(&mut self, val: f64) {
+        self.0+= val;
+    }
+    pub fn sub_assign_f64(&mut self, val: f64) {
+        self.0-= val;
+    }
+    pub fn f64(self) -> f64 { self.0 }
+}
+
+impl Default for Balance {
+    fn default() -> Self {
+        Balance::from(0.0)
+    }
+}
+
+impl Hash for Balance {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+impl AddAssign for Balance {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+impl SubAssign for Balance {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+impl From<f64> for Balance {
+    fn from(value: f64) -> Self {
+        Balance(value)
+    }
+}
+
+pub trait AsBalance {
+    fn as_balance(&self) -> Balance;
+}
+impl AsBalance for f64 {
+    fn as_balance(&self) -> Balance {
+        Balance(self.clone())
+    }
+}
+
+// user
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct User {
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub id: u32, // primary key
+    pub fiat_balance: Balance,
+    pub crypto_balance: HashMap<String, Balance>
+}
+
+impl Hash for User {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.first_name.hash(state);
+        self.last_name.hash(state);
+        self.email.hash(state);
+        self.id.hash(state);
+        self.fiat_balance.hash(state);
+    }
+}
+
+//
+// xyz.rs
+//
 
 type Users = BTreeMap<u32, User>;
 type Blockchains = BTreeMap<String, Blockchain>;
@@ -85,15 +635,14 @@ pub struct XYZ {
 // errors
 //
 
-#[derive(Error, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FiatDepositError {
     FiatTransactionError(ErrorNewTransaction),
     UserNotFound{ user_id: u32 },
     File(FileError)
 }
 
-#[derive(Error)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FiatWithdrawalError {
     FiatTransactionError(ErrorNewTransaction),
     UserNotFound{ user_id: u32 },
@@ -101,7 +650,7 @@ pub enum FiatWithdrawalError {
     File(FileError)
 }
 
-#[derive(Error, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BlockchainDepositError {
     BlockchainTransactionError(ErrorNewTransaction),
     BlockchainNotFound{ blockchain: String },
@@ -110,8 +659,7 @@ pub enum BlockchainDepositError {
     File(FileError)
 }
 
-#[derive(Error)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BlockchainWithdrawalError {
     BlockchainTransactionError(ErrorNewTransaction),
     BlockchainNotFound{ blockchain: String },
@@ -121,8 +669,7 @@ pub enum BlockchainWithdrawalError {
     File(FileError)
 }
 
-#[derive(Error)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BuySellError {
     TransactionError(ErrorNewTransaction),
     CryptocurrencyNotQuoted { crypto_prefix: String },
@@ -132,7 +679,7 @@ pub enum BuySellError {
     Unknown(String),
 }
 
-#[derive(Error, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FileError {
     Serialization,
     Deserialization,
@@ -350,7 +897,7 @@ impl XYZ {
     //  Luego de ello se registra la transacción con los siguientes datos:
     //  fecha, usuario, criptomoneda, tipo: venta de cripto, monto de cripto y cotización.
     fn crypto_sell(&mut self, today_date: Date, user_id: u32, crypto_amount: f64, crypto_prefix: &str) ->
-        Result<&CryptoTransaction, BuySellError> {
+    Result<&CryptoTransaction, BuySellError> {
         // date errors are handled by CryptoTransaction::new()
         let data = CommonTransactionData {
             date: today_date,
@@ -646,8 +1193,8 @@ impl XYZ {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::structs::user::AsBalance;
+mod test_xyz {
+    use std::fs;
     use super::*;
 
     fn delete_xyz_mock_json() -> bool {
@@ -1173,5 +1720,4 @@ mod tests {
         assert_eq!(data.0, "ETH");
         assert_eq!(data.1.as_balance(), 6000.0.as_balance());
     }
-
 }

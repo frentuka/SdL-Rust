@@ -13,7 +13,7 @@ use crate::structs::usuario::Usuario;
 
 type Usuarios = BTreeMap<u64, Usuario>;
 
-const BASE_FOLDER: &str = "R:/appcrap/RustRover/SdL-Rust/prac5/_p5e5/res/";
+const BASE_FOLDER: &str = "";
 const DEFAULT_FILE_NAME: &str = "streamingrust_usuarios";
 
 pub trait UsuariosFile {

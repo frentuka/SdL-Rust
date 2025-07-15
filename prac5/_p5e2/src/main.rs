@@ -7,7 +7,8 @@
 //      Si puede agregar más en caso de que haga métodos nuevos.
 //      Recuerde también que se debe seguir manteniendo un coverage de al menos 90%,
 
-mod structs;
+//mod structs;
+mod p5e2;
 
 fn main() {
     println!("Hello, world!");
