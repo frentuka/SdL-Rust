@@ -31,6 +31,7 @@
       <sourceFolder url="file://$MODULE_DIR$/entregables/entregable2_v2/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/entregables/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/prac5/_p5e6/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/entregables/r_entregable2_v1/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac1_/ej1/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac1_/ej10/target" />
@@ -61,6 +62,7 @@
       <excludeFolder url="file://$MODULE_DIR$/entregables/target" />
       <excludeFolder url="file://$MODULE_DIR$/prac5/_p5e6/res" />
       <excludeFolder url="file://$MODULE_DIR$/prac5/_p5e6/target" />
+      <excludeFolder url="file://$MODULE_DIR$/entregables/r_entregable2_v1/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

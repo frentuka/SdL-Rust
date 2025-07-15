@@ -868,8 +868,6 @@ impl XYZ {
                         // la ultima transaccion guarada debería estar al final
                         match crypto_transactions.last() {
                             Some(transaction) => {
-                                // todo bien!!!
-
                                 // guardar en archivo
                                 match self.sobreescribir_archivo_xyz() {
                                     Ok(()) => {}
@@ -949,7 +947,6 @@ impl XYZ {
                         // la ultima transaccion guarada debería estar al final
                         match crypto_transactions.last() {
                             Some(transaction) => {
-                                // todo bien!!!
 
                                 // guardar en archivo
                                 match self.sobreescribir_archivo_xyz() {
